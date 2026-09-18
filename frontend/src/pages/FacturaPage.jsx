@@ -5,7 +5,6 @@ import { getRoles } from '../services/rolService';
 import TablaGenerica from '../components/TablaGenerica';
 import { formatMoneda } from '../utils/format';
 import { getAbonos } from '../services/abonoService';
-import { formatMoneda } from '../utils/format';
 
 const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripcion: '', id_estado: 1 };
 
