@@ -6,7 +6,8 @@ const GRUPOS = [
             { key: 'nuevaCompra', label: 'Nueva compra' },
             { key: 'facturas', label: 'Facturas' },
             { key: 'compras', label: 'Compras' },
-            { key: 'transporte', label: 'Transporte' }
+            { key: 'transporte', label: 'Transporte' },
+            { key: 'nuevoAbono', label: 'Registrar abono' }
         ]
     },
     {

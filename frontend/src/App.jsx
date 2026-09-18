@@ -16,10 +16,12 @@ import ProductosXCompraPage from './pages/ProductosXCompraPage';
 import ProductosXFacturaPage from './pages/ProductosXFacturaPage';
 import NuevaFacturaPage from './pages/NuevaFacturaPage';
 import NuevaCompraPage from './pages/NuevaCompraPage'
+import NuevoAbonoPage from './pages/NuevoAbonoPage';
 
 const PAGINAS = {
     nuevaFactura: NuevaFacturaPage,
     nuevaCompra: NuevaCompraPage,
+    nuevoAbono: NuevoAbonoPage,
     facturas: FacturaPage,
     compras: CompraPage,
     transporte: TransportePage,

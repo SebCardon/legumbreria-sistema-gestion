@@ -14,6 +14,7 @@ const compraRoutes = require('./routes/compra.routes');
 const productosXCompraRoutes = require('./routes/productosXCompra.routes');
 const productosXFacturaRoutes = require('./routes/productosXFactura.routes');
 const estadoRoutes = require('./routes/estado.routes')
+const abonoRoutes = require('./routes/abono.routes');
 
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/compras', compraRoutes);
 app.use('/api/productos-x-compra', productosXCompraRoutes);
 app.use('/api/productos-x-factura', productosXFacturaRoutes);
 app.use('/api/estados', estadoRoutes);
+app.use('/api/abonos', abonoRoutes);
 
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);

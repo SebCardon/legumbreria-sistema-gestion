@@ -3,6 +3,7 @@ import { getPersonas, createPersona, updatePersona, desactivarPersona } from '..
 import { getTiposDocumento } from '../services/tipoDocumentoService';
 import { getRoles } from '../services/rolService';
 import TablaGenerica from '../components/TablaGenerica';
+import { formatMoneda } from '../utils/format';
 
 const columnas = [
     { campo: 'id', titulo: 'ID' },
@@ -10,7 +11,8 @@ const columnas = [
     { campo: 'apellido', titulo: 'Apellido' },
     { campo: 'num_documento', titulo: 'Documento' },
     { campo: 'telefono', titulo: 'Teléfono' },
-    { campo: 'correo', titulo: 'Correo' }
+    { campo: 'correo', titulo: 'Correo' },
+    { campo: 'saldo_a_favor', titulo: 'Saldo a favor', render: (fila) => formatMoneda(fila.saldo_a_favor || 0) }
 ];
 
 const formVacio = {
