@@ -4,6 +4,8 @@ import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
 import TablaGenerica from '../components/TablaGenerica';
 import { formatMoneda } from '../utils/format';
+import { getAbonos } from '../services/abonoService';
+import { formatMoneda } from '../utils/format';
 
 const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripcion: '', id_estado: 1 };
 
@@ -14,11 +16,12 @@ function FacturaPage() {
     const [cargando, setCargando] = useState(true);
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
+    const [abonos, setAbonos] = useState([]);
 
     const cargar = async () => {
         setCargando(true);
-        const [dataItems, dataPersonas, dataRoles] = await Promise.all([
-            getFacturas(), getPersonas(), getRoles()
+        const [dataItems, dataPersonas, dataRoles, dataAbonos] = await Promise.all([
+            getFacturas(), getPersonas(), getRoles(), getAbonos()
         ]);
 
         const rolCliente = dataRoles.find((r) => r.nombre.toLowerCase() === 'cliente');
@@ -27,10 +30,11 @@ function FacturaPage() {
             : dataPersonas;
 
         setClientes(soloClientes);
-        setTodasLasPersonas(dataPersonas); // guardamos TODAS, por si una factura vieja apunta a alguien fuera del filtro
+        setTodasLasPersonas(dataPersonas);
+        setAbonos(dataAbonos);
         setItems(dataItems);
         setCargando(false);
-    };
+    };;
 
     useEffect(() => { cargar(); }, []);
 
@@ -39,12 +43,23 @@ function FacturaPage() {
         const persona = todasLasPersonas.find((p) => p.id === id);
         return persona ? `${persona.nombre} ${persona.apellido}` : `ID ${id}`;
     };
+    const totalAbonado = (idFactura) => {
+        return abonos
+            .filter((a) => a.id_factura === idFactura)
+            .reduce((acc, a) => acc + Number(a.valor), 0);
+    };
+
+    const saldoPendiente = (fila) => {
+        return Math.max(Number(fila.total_pagar) - totalAbonado(fila.id), 0);
+    };
 
     const columnas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_persona_cliente', titulo: 'Cliente', render: (fila) => nombrePersona(fila.id_persona_cliente) },
         { campo: 'fecha', titulo: 'Fecha' },
         { campo: 'total_pagar', titulo: 'Total', render: (fila) => formatMoneda(fila.total_pagar) },
+        { campo: 'abonado', titulo: 'Abonado', render: (fila) => formatMoneda(totalAbonado(fila.id)) },
+        { campo: 'pendiente', titulo: 'Pendiente', render: (fila) => formatMoneda(saldoPendiente(fila)) },
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
 
