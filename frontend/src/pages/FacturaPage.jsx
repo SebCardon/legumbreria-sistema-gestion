@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import { getFacturas, createFactura, updateFactura, desactivarFactura } from '../services/facturaService';
 import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
-import TablaGenerica from '../components/TablaGenerica';
-import { formatMoneda } from '../utils/format';
 import { getAbonos } from '../services/abonoService';
+import { getProductosXFacturaByFactura } from '../services/productosXFacturaService';
+import { getProductos } from '../services/productosService';
+import { getPresentaciones } from '../services/presentacionService';
+import { formatMoneda } from '../utils/format';
+import { generarFacturaPDF } from '../utils/facturaPdf';
+import TablaGenerica from '../components/TablaGenerica';
 
 const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripcion: '', id_estado: 1 };
 
@@ -12,15 +16,17 @@ function FacturaPage() {
     const [items, setItems] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [todasLasPersonas, setTodasLasPersonas] = useState([]);
+    const [abonos, setAbonos] = useState([]);
+    const [productos, setProductos] = useState([]);
+    const [presentaciones, setPresentaciones] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
-    const [abonos, setAbonos] = useState([]);
 
     const cargar = async () => {
         setCargando(true);
-        const [dataItems, dataPersonas, dataRoles, dataAbonos] = await Promise.all([
-            getFacturas(), getPersonas(), getRoles(), getAbonos()
+        const [dataItems, dataPersonas, dataRoles, dataAbonos, dataProductos, dataPresentaciones] = await Promise.all([
+            getFacturas(), getPersonas(), getRoles(), getAbonos(), getProductos(), getPresentaciones()
         ]);
 
         const rolCliente = dataRoles.find((r) => r.nombre.toLowerCase() === 'cliente');
@@ -31,17 +37,19 @@ function FacturaPage() {
         setClientes(soloClientes);
         setTodasLasPersonas(dataPersonas);
         setAbonos(dataAbonos);
+        setProductos(dataProductos);
+        setPresentaciones(dataPresentaciones);
         setItems(dataItems);
         setCargando(false);
-    };;
+    };
 
     useEffect(() => { cargar(); }, []);
 
-    // Buscamos el nombre de la persona a partir de su id, para mostrarlo en la tabla
     const nombrePersona = (id) => {
         const persona = todasLasPersonas.find((p) => p.id === id);
         return persona ? `${persona.nombre} ${persona.apellido}` : `ID ${id}`;
     };
+
     const totalAbonado = (idFactura) => {
         return abonos
             .filter((a) => a.id_factura === idFactura)
@@ -104,6 +112,35 @@ function FacturaPage() {
         }
     };
 
+    const handleDescargarPDF = async (fila) => {
+        try {
+            const detalles = await getProductosXFacturaByFactura(fila.id);
+
+            const lineas = detalles.map((d) => {
+                const producto = productos.find((p) => p.id === d.id_producto);
+                const presentacion = presentaciones.find((p) => p.id === d.id_presentacion);
+                const nombreProducto = producto ? producto.nombre : `Producto ${d.id_producto}`;
+                const nombrePresentacion = presentacion ? ` (${presentacion.nombre})` : '';
+                return {
+                    cantidad: d.peso_total_kg,
+                    descripcion: `${nombreProducto}${nombrePresentacion}`,
+                    vrUnitario: d.precio_por_kg,
+                    vrTotal: d.subtotal
+                };
+            });
+
+            generarFacturaPDF({
+                factura: fila,
+                clienteNombre: nombrePersona(fila.id_persona_cliente),
+                lineas,
+                totalAbonado: totalAbonado(fila.id)
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Error al generar el PDF de la factura.');
+        }
+    };
+
     if (cargando) return <p>Cargando facturas...</p>;
 
     return (
@@ -129,6 +166,7 @@ function FacturaPage() {
                 columnas={columnas}
                 datos={items}
                 acciones={[
+                    { etiqueta: 'PDF', onClick: handleDescargarPDF },
                     { etiqueta: 'Editar', onClick: handleEditar },
                     { etiqueta: 'Anular', onClick: handleAnular, tipo: 'peligro' }
                 ]}
