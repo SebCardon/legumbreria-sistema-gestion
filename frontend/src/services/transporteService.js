@@ -1,5 +1,7 @@
 import axios from 'axios';
-const API_URL = 'http://localhost:3000/api/transportes';
+import { API_BASE_URL } from './apiConfig';
+
+const API_URL = `${API_BASE_URL}/transportes`;
 
 export const getTransportes = async () => (await axios.get(API_URL)).data;
 export const createTransporte = async (data) => (await axios.post(API_URL, data)).data;

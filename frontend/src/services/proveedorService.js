@@ -1,5 +1,7 @@
 import axios from 'axios';
-const API_URL = 'http://localhost:3000/api/proveedores';
+import { API_BASE_URL } from './apiConfig';
+
+const API_URL = `${API_BASE_URL}/proveedores`;
 
 export const getProveedores = async () => (await axios.get(API_URL)).data;
 export const createProveedor = async (data) => (await axios.post(API_URL, data)).data;
