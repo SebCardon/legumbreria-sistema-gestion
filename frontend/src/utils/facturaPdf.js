@@ -85,6 +85,31 @@ export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado
         }
     });
 
+    // --- Filas de productos ---
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    if (lineas.length === 0) {
+        doc.setTextColor(150, 60, 60);
+        doc.text('Esta factura no tiene productos registrados en el sistema.', marginX, y + 14);
+        y += 30;
+    } else {
+        lineas.forEach((linea) => {
+            doc.text(String(linea.cantidad), col.cant, y + 14);
+            doc.text(linea.descripcion, col.desc, y + 14);
+            doc.text(`$${formatNumero(linea.vrUnitario)}`, col.vu, y + 14);
+            doc.text(`$${formatNumero(linea.vrTotal)}`, col.vt, y + 14);
+            doc.setDrawColor(216, 210, 194);
+            doc.line(marginX, y + 20, pageWidth - marginX, y + 20);
+            y += 20;
+
+            if (y > 700) {
+                doc.addPage();
+                y = 60;
+            }
+        });
+    }
+
     // --- Total ---
     y += 15;
     doc.setFont('helvetica', 'bold');
