@@ -22,6 +22,7 @@ function FacturaPage() {
     const [cargando, setCargando] = useState(true);
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
+    const [busqueda, setBusqueda] = useState('');
 
     const cargar = async () => {
         setCargando(true);
@@ -141,6 +142,12 @@ function FacturaPage() {
         }
     };
 
+    const itemsFiltrados = items.filter((fila) => {
+        if (!busqueda.trim()) return true;
+        const nombreCompleto = nombrePersona(fila.id_persona_cliente).toLowerCase();
+        return nombreCompleto.includes(busqueda.toLowerCase());
+    });
+
     if (cargando) return <p>Cargando facturas...</p>;
 
     return (
@@ -162,6 +169,15 @@ function FacturaPage() {
                 <button type="submit">{editandoId ? 'Guardar cambios' : 'Agregar Factura'}</button>
                 {editandoId && <button type="button" onClick={handleCancelar}>Cancelar</button>}
             </form>
+
+            <input
+                type="text"
+                placeholder="Buscar por nombre de cliente..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                style={{ marginBottom: '12px', maxWidth: '300px' }}
+            />
+
             <TablaGenerica
                 columnas={columnas}
                 datos={items}
