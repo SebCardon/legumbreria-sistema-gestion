@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getFacturas, createFactura, updateFactura, desactivarFactura } from '../services/facturaService';
+import {
+    getFacturas, createFactura, updateFactura, desactivarFactura, getFacturasCanceladas
+} from '../services/facturaService';
 import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
 import { getAbonos } from '../services/abonoService';
@@ -14,6 +16,8 @@ const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripc
 
 function FacturaPage() {
     const [items, setItems] = useState([]);
+    const [canceladas, setCanceladas] = useState([]);
+    const [mostrarCanceladas, setMostrarCanceladas] = useState(false);
     const [clientes, setClientes] = useState([]);
     const [todasLasPersonas, setTodasLasPersonas] = useState([]);
     const [abonos, setAbonos] = useState([]);
@@ -26,8 +30,8 @@ function FacturaPage() {
 
     const cargar = async () => {
         setCargando(true);
-        const [dataItems, dataPersonas, dataRoles, dataAbonos, dataProductos, dataPresentaciones] = await Promise.all([
-            getFacturas(), getPersonas(), getRoles(), getAbonos(), getProductos(), getPresentaciones()
+        const [dataItems, dataCanceladas, dataPersonas, dataRoles, dataAbonos, dataProductos, dataPresentaciones] = await Promise.all([
+            getFacturas(), getFacturasCanceladas(), getPersonas(), getRoles(), getAbonos(), getProductos(), getPresentaciones()
         ]);
 
         const rolCliente = dataRoles.find((r) => r.nombre.toLowerCase() === 'cliente');
@@ -41,6 +45,7 @@ function FacturaPage() {
         setProductos(dataProductos);
         setPresentaciones(dataPresentaciones);
         setItems(dataItems);
+        setCanceladas(dataCanceladas);
         setCargando(false);
     };
 
@@ -70,6 +75,11 @@ function FacturaPage() {
         { campo: 'pendiente', titulo: 'Pendiente', render: (fila) => formatMoneda(saldoPendiente(fila)) },
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
+
+    const itemsFiltrados = items.filter((fila) => {
+        if (!busqueda.trim()) return true;
+        return nombrePersona(fila.id_persona_cliente).toLowerCase().includes(busqueda.toLowerCase());
+    });
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -101,22 +111,38 @@ function FacturaPage() {
         setEditandoId(fila.id);
     };
 
-    const handleCancelar = () => { setFormData(formVacio); setEditandoId(null); };
+    const handleCancelarEdicion = () => { setFormData(formVacio); setEditandoId(null); };
 
-    const handleAnular = async (fila) => {
+    const handleCancelarFactura = async (fila) => {
+        if (!window.confirm('¿Marcar esta factura como cancelada?')) return;
         try {
             await desactivarFactura(fila.id);
             cargar();
         } catch (err) {
             console.error(err);
-            alert('Error al anular la factura.');
+            alert('Error al cancelar la factura.');
+        }
+    };
+
+    const handleReactivar = async (fila) => {
+        try {
+            await updateFactura(fila.id, {
+                id_persona_cliente: fila.id_persona_cliente,
+                fecha: fila.fecha ? fila.fecha.slice(0, 16) : '',
+                total_pagar: fila.total_pagar,
+                descripcion: fila.descripcion || '',
+                id_estado: 1
+            });
+            cargar();
+        } catch (err) {
+            console.error(err);
+            alert('Error al reactivar la factura.');
         }
     };
 
     const handleDescargarPDF = async (fila) => {
         try {
             const detalles = await getProductosXFacturaByFactura(fila.id);
-
             const lineas = detalles.map((d) => {
                 const producto = productos.find((p) => p.id === d.id_producto);
                 const presentacion = presentaciones.find((p) => p.id === d.id_presentacion);
@@ -142,12 +168,6 @@ function FacturaPage() {
         }
     };
 
-    const itemsFiltrados = items.filter((fila) => {
-        if (!busqueda.trim()) return true;
-        const nombreCompleto = nombrePersona(fila.id_persona_cliente).toLowerCase();
-        return nombreCompleto.includes(busqueda.toLowerCase());
-    });
-
     if (cargando) return <p>Cargando facturas...</p>;
 
     return (
@@ -167,7 +187,7 @@ function FacturaPage() {
                 <input name="total_pagar" type="number" step="0.01" placeholder="Total a pagar" value={formData.total_pagar} onChange={handleChange} required />
                 <input name="descripcion" placeholder="Descripción" value={formData.descripcion} onChange={handleChange} />
                 <button type="submit">{editandoId ? 'Guardar cambios' : 'Agregar Factura'}</button>
-                {editandoId && <button type="button" onClick={handleCancelar}>Cancelar</button>}
+                {editandoId && <button type="button" onClick={handleCancelarEdicion}>Cancelar edición</button>}
             </form>
 
             <input
@@ -175,18 +195,43 @@ function FacturaPage() {
                 placeholder="Buscar por nombre de cliente..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                style={{ marginBottom: '12px', maxWidth: '300px' }}
+                style={{ marginBottom: '16px', maxWidth: '300px', display: 'block' }}
             />
 
             <TablaGenerica
                 columnas={columnas}
-                datos={items}
+                datos={itemsFiltrados}
                 acciones={[
                     { etiqueta: 'PDF', onClick: handleDescargarPDF },
                     { etiqueta: 'Editar', onClick: handleEditar },
-                    { etiqueta: 'Anular', onClick: handleAnular, tipo: 'peligro' }
+                    { etiqueta: 'Cancelar', onClick: handleCancelarFactura, tipo: 'peligro' }
                 ]}
             />
+
+            <button
+                type="button"
+                onClick={() => setMostrarCanceladas((prev) => !prev)}
+                style={{ marginTop: '20px', background: 'transparent', color: 'var(--color-primary-dark)', border: '1px solid var(--color-primary)' }}
+            >
+                {mostrarCanceladas ? '▾' : '▸'} Facturas canceladas ({canceladas.length})
+            </button>
+
+            {mostrarCanceladas && (
+                <div style={{ marginTop: '12px' }}>
+                    {canceladas.length === 0 ? (
+                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas canceladas.</p>
+                    ) : (
+                        <TablaGenerica
+                            columnas={columnas}
+                            datos={canceladas}
+                            acciones={[
+                                { etiqueta: 'PDF', onClick: handleDescargarPDF },
+                                { etiqueta: 'Reactivar', onClick: handleReactivar }
+                            ]}
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 }

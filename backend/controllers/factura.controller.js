@@ -69,4 +69,14 @@ const desactivarFactura = async (req, res) => {
     }
 };
 
-module.exports = { getFacturas, getFacturaById, createFactura, updateFactura, desactivarFactura };
+const getFacturasCanceladas = async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM factura WHERE id_estado = ?', [ID_ESTADO_INACTIVO]);
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { getFacturas, getFacturaById, createFactura, updateFactura, desactivarFactura, getFacturasCanceladas };
