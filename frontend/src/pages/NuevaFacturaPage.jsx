@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getPersonas } from '../services/personasService';
 import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
@@ -24,6 +24,7 @@ function NuevaFacturaPage() {
     const [descripcion, setDescripcion] = useState('');
     const [lineas, setLineas] = useState([crearLineaVacia()]);
     const [guardando, setGuardando] = useState(false);
+    const enviandoRef = useRef(false);
 
     useEffect(() => {
         const cargarDatosIniciales = async () => {
@@ -72,15 +73,19 @@ function NuevaFacturaPage() {
 
     const handleGuardar = async (e) => {
         e.preventDefault();
+        if (enviandoRef.current) return; // ya hay un guardado en curso, ignora el clic extra
+        enviandoRef.current = true;
 
         if (!idPersonaCliente || !fecha) {
-            alert('Selecciona un cliente y una fecha.');
-            return;
+        alert('Selecciona un cliente y una fecha.');
+        enviandoRef.current = false;
+        return;
         }
 
         const lineasValidas = lineas.filter((l) => l.id_producto && l.peso_total_kg && l.id_presentacion);
         if (lineasValidas.length === 0) {
             alert('Agrega al menos un producto con cantidad.');
+            enviandoRef.current = false;
             return;
         }
 
@@ -119,10 +124,11 @@ function NuevaFacturaPage() {
             setDescripcion('');
             setLineas([crearLineaVacia()]);
         } catch (err) {
-            console.error(err);
-            alert(err.response?.data?.error || 'Error al guardar la factura. Revisa el stock de los productos.');
+        console.error(err);
+        alert(err.response?.data?.error || 'Error al guardar la factura. Revisa el stock de los productos.');
         } finally {
             setGuardando(false);
+            enviandoRef.current = false; // libera el candado, ya sea que salió bien o mal
         }
     };
 

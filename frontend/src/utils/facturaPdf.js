@@ -1,131 +1,106 @@
 import jsPDF from 'jspdf';
 import { formatNumero } from './format';
 
-// Datos fijos del negocio — cámbialos aquí si algo cambia, un solo lugar
 const NEGOCIO = {
     nombre: 'Legumbres y Verduras Aristizábal',
     propietario: 'David Leandro Aristizábal Giraldo',
-    nit: 'NIT. 1.036.616.566-3 Régimen Simplificado',
-    direccion: 'Central Minorista José María Villa — Sector 3 Locales 223-224',
+    nit: 'NIT. 1.036.616.566-3',
+    regimen: 'Régimen Simplificado',
+    direccionLineas: ['Central Minorista José María Villa', 'Sector 3 Locales 223-224'],
     telefono: 'Cel: 311 709 92 33',
-    lema: 'Ventas por mayor y detal — ¡Ven y danos el gusto de atenderte!'
+    lema1: 'Ventas por mayor y detal',
+    lema2: '¡Ven y danos el gusto de atenderte!'
 };
 
+const ANCHO_MM = 80; // Cambia a 58 si tu impresora térmica es de rollo angosto
+const MARGEN_MM = 4;
+const ANCHO_UTIL = ANCHO_MM - MARGEN_MM * 2;
+
 export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado = 0 }) {
-    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 40;
+    const alturaEncabezado = 55;
+    const alturaPorLinea = 9;
+    const alturaPie = 20 + (totalAbonado > 0 ? 10 : 0);
+    const alturaEstimada = Math.max(alturaEncabezado + lineas.length * alturaPorLinea + alturaPie, 100);
 
-    // --- Encabezado verde con los datos del negocio ---
-    doc.setFillColor(47, 122, 75);
-    doc.rect(0, 0, pageWidth, 95, 'F');
+    const doc = new jsPDF({ unit: 'mm', format: [ANCHO_MM, alturaEstimada] });
+    const centro = ANCHO_MM / 2;
+    let y = 6;
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(NEGOCIO.nombre, marginX, 30);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(NEGOCIO.propietario, marginX, 45);
-    doc.text(NEGOCIO.nit, marginX, 57);
-    doc.text(NEGOCIO.direccion, marginX, 69);
-    doc.text(`${NEGOCIO.telefono}  ·  ${NEGOCIO.lema}`, marginX, 81);
-
-    // --- Número de factura, arriba a la derecha ---
+    // --- Encabezado del negocio ---
+    doc.setFont('courier', 'bold');
     doc.setFontSize(10);
-    doc.text('FACTURA DE VENTA', pageWidth - marginX, 28, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text(`No. ${String(factura.id).padStart(5, '0')}`, pageWidth - marginX, 50, { align: 'right' });
+    doc.text(NEGOCIO.nombre, centro, y, { align: 'center', maxWidth: ANCHO_UTIL });
+    y += 5;
 
-    // --- Datos de la venta ---
-    let y = 118;
-    doc.setTextColor(35, 48, 31);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-
-    const fechaTexto = factura.fecha ? new Date(factura.fecha).toLocaleDateString('es-CO') : '';
-    doc.text(`Fecha: ${fechaTexto}`, marginX, y);
-    doc.text(`Vendido a: ${clienteNombre}`, marginX, y + 16);
-    if (factura.descripcion) {
-        doc.text(`Observaciones: ${factura.descripcion}`, marginX, y + 32);
-        y += 16;
-    }
-    y += 45;
-
-    // --- Encabezado de la tabla ---
-    const col = { cant: marginX + 4, desc: marginX + 65, vu: marginX + 330, vt: marginX + 430 };
-    doc.setFillColor(230, 240, 230);
-    doc.rect(marginX, y, pageWidth - marginX * 2, 20, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('CANT. (KG)', col.cant, y + 14);
-    doc.text('DESCRIPCIÓN', col.desc, y + 14);
-    doc.text('VR. UNITARIO', col.vu, y + 14);
-    doc.text('VR. TOTAL', col.vt, y + 14);
-    y += 20;
-
-    // --- Filas de productos ---
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    lineas.forEach((linea) => {
-        doc.text(String(linea.cantidad), col.cant, y + 14);
-        doc.text(linea.descripcion, col.desc, y + 14);
-        doc.text(`$${formatNumero(linea.vrUnitario)}`, col.vu, y + 14);
-        doc.text(`$${formatNumero(linea.vrTotal)}`, col.vt, y + 14);
-        doc.setDrawColor(216, 210, 194);
-        doc.line(marginX, y + 20, pageWidth - marginX, y + 20);
-        y += 20;
-
-        // Si se llena la página, empieza una hoja nueva
-        if (y > 700) {
-            doc.addPage();
-            y = 60;
-        }
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.text(NEGOCIO.propietario, centro, y, { align: 'center' }); y += 3.2;
+    doc.text(`${NEGOCIO.nit} ${NEGOCIO.regimen}`, centro, y, { align: 'center' }); y += 3.2;
+    NEGOCIO.direccionLineas.forEach((linea) => {
+        doc.text(linea, centro, y, { align: 'center' });
+        y += 3.2;
     });
+    doc.text(NEGOCIO.telefono, centro, y, { align: 'center' }); y += 3.2;
+    doc.text(NEGOCIO.lema1, centro, y, { align: 'center' }); y += 3.2;
+    doc.text(NEGOCIO.lema2, centro, y, { align: 'center', maxWidth: ANCHO_UTIL }); y += 5;
 
-    // --- Filas de productos ---
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setLineDashPattern([0.6, 0.6], 0);
+    doc.line(MARGEN_MM, y, ANCHO_MM - MARGEN_MM, y);
+    y += 4;
 
+    // --- Número de factura y datos de la venta ---
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(8);
+    doc.text('FACTURA DE VENTA', centro, y, { align: 'center' }); y += 4;
+    doc.text(`No. ${String(factura.id).padStart(5, '0')}`, centro, y, { align: 'center' }); y += 5;
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    const fechaTexto = factura.fecha ? new Date(factura.fecha).toLocaleDateString('es-CO') : '';
+    doc.text(`Fecha: ${fechaTexto}`, MARGEN_MM, y); y += 3.5;
+    doc.text(`Cliente: ${clienteNombre}`, MARGEN_MM, y, { maxWidth: ANCHO_UTIL }); y += 5;
+
+    doc.line(MARGEN_MM, y, ANCHO_MM - MARGEN_MM, y);
+    y += 4;
+
+    // --- Productos (formato de dos renglones por línea, ideal para papel angosto) ---
     if (lineas.length === 0) {
-        doc.setTextColor(150, 60, 60);
-        doc.text('Esta factura no tiene productos registrados en el sistema.', marginX, y + 14);
-        y += 30;
+        doc.setTextColor(150, 40, 40);
+        doc.text('Esta factura no tiene productos registrados.', MARGEN_MM, y, { maxWidth: ANCHO_UTIL });
+        y += 6;
+        doc.setTextColor(0, 0, 0);
     } else {
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(7.5);
         lineas.forEach((linea) => {
-            doc.text(String(linea.cantidad), col.cant, y + 14);
-            doc.text(linea.descripcion, col.desc, y + 14);
-            doc.text(`$${formatNumero(linea.vrUnitario)}`, col.vu, y + 14);
-            doc.text(`$${formatNumero(linea.vrTotal)}`, col.vt, y + 14);
-            doc.setDrawColor(216, 210, 194);
-            doc.line(marginX, y + 20, pageWidth - marginX, y + 20);
-            y += 20;
-
-            if (y > 700) {
-                doc.addPage();
-                y = 60;
-            }
+            doc.text(linea.descripcion, MARGEN_MM, y, { maxWidth: ANCHO_UTIL });
+            y += 3.5;
+            doc.text(`${linea.cantidad} x $${formatNumero(linea.vrUnitario)}`, MARGEN_MM, y);
+            doc.text(`$${formatNumero(linea.vrTotal)}`, ANCHO_MM - MARGEN_MM, y, { align: 'right' });
+            y += 5;
         });
     }
 
-    // --- Total ---
-    y += 15;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text(`TOTAL $ ${formatNumero(factura.total_pagar)}`, pageWidth - marginX, y, { align: 'right' });
+    doc.line(MARGEN_MM, y, ANCHO_MM - MARGEN_MM, y);
+    y += 5;
 
-    // --- Abonos, si aplica ---
+    // --- Total ---
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(9);
+    doc.text(`TOTAL $ ${formatNumero(factura.total_pagar)}`, ANCHO_MM - MARGEN_MM, y, { align: 'right' });
+    y += 6;
+
     if (totalAbonado > 0) {
         const pendiente = Math.max(Number(factura.total_pagar) - totalAbonado, 0);
-        y += 18;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`Abonado: $${formatNumero(totalAbonado)}`, pageWidth - marginX, y, { align: 'right' });
-        y += 14;
-        doc.text(`Saldo pendiente: $${formatNumero(pendiente)}`, pageWidth - marginX, y, { align: 'right' });
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(7.5);
+        doc.text(`Abonado: $${formatNumero(totalAbonado)}`, ANCHO_MM - MARGEN_MM, y, { align: 'right' }); y += 3.5;
+        doc.text(`Pendiente: $${formatNumero(pendiente)}`, ANCHO_MM - MARGEN_MM, y, { align: 'right' }); y += 5;
     }
+
+    doc.setFont('courier', 'italic');
+    doc.setFontSize(7);
+    doc.text('¡Gracias por su compra!', centro, y, { align: 'center' });
 
     doc.save(`factura_${factura.id}.pdf`);
 }
