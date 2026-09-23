@@ -163,7 +163,7 @@ function NuevaFacturaPage() {
                             <th>Descripción (Producto)</th>
                             <th>Presentación</th>
                             <th>Cantidad (Kg)</th>
-                            <th>Vr. Unitario</th>
+                            <th>Vr. Unitario (editable)</th>
                             <th>Vr. Total</th>
                             <th></th>
                         </tr>
@@ -209,6 +209,7 @@ function NuevaFacturaPage() {
                                         value={linea.precio_por_kg}
                                         onChange={(e) => handleLineaChange(index, 'precio_por_kg', e.target.value)}
                                         style={{ width: '90px' }}
+                                        title="Precio sugerido del catálogo — puedes cambiarlo libremente para esta venta específica"
                                     />
                                 </td>
                                 <td>${calcularSubtotal(linea).toLocaleString('es-CO')}</td>
@@ -227,6 +228,10 @@ function NuevaFacturaPage() {
                 <h3 style={{ textAlign: 'right', marginTop: '20px' }}>
                     TOTAL $ {formatNumero(totalFactura)}
                 </h3>
+
+                <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', marginTop: '8px' }}>
+                    El precio de cada producto se autocompleta con el valor del catálogo, pero puedes editarlo libremente en cada línea — útil para vender el mismo producto a precios distintos según calidad, cliente o negociación puntual.
+                </p>
 
                 <button type="submit" disabled={guardando} style={{ padding: '10px 20px', fontSize: '16px' }}>
                     {guardando ? 'Guardando...' : 'Guardar Factura'}

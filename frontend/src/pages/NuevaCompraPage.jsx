@@ -148,7 +148,7 @@ function NuevaCompraPage() {
                         <th>Producto</th>
                         <th>Presentación</th>
                         <th>Cantidad (Kg)</th>
-                        <th>Costo Unitario</th>
+                        <th>Costo Unitario (editable)</th>
                         <th>Subtotal</th>
                         <th></th>
                     </tr>
@@ -178,7 +178,8 @@ function NuevaCompraPage() {
                             </td>
                             <td>
                                 <input type="number" step="0.01" value={linea.precio_por_kg}
-                                    onChange={(e) => handleLineaChange(index, 'precio_por_kg', e.target.value)} style={{ width: '90px' }} />
+                                    onChange={(e) => handleLineaChange(index, 'precio_por_kg', e.target.value)} style={{ width: '90px' }} 
+                                    title="Precio sugerido del catálogo — puedes cambiarlo libremente para esta compra específica"/>
                             </td>
                             <td>${calcularSubtotal(linea).toLocaleString('es-CO')}</td>
                             <td><button type="button" onClick={() => eliminarLinea(index)}>✕</button></td>
@@ -192,6 +193,10 @@ function NuevaCompraPage() {
             <h3 style={{ textAlign: 'right', marginTop: '20px' }}>
                 TOTAL $ {formatNumero(totalCompra)}
             </h3>
+
+            <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', marginTop: '8px' }}>
+                El precio de cada producto se autocompleta con el valor del catálogo, pero puedes editarlo libremente en cada línea — útil para vender el mismo producto a precios distintos según calidad, cliente o negociación puntual.
+            </p>
 
             <button onClick={handleGuardar} disabled={guardando} style={{ padding: '10px 20px', fontSize: '16px' }}>
                 {guardando ? 'Guardando...' : 'Guardar Compra'}
