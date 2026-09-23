@@ -72,65 +72,61 @@ function NuevaFacturaPage() {
     };
 
     const handleGuardar = async (e) => {
-        e.preventDefault();
-        if (enviandoRef.current) return; // ya hay un guardado en curso, ignora el clic extra
-        enviandoRef.current = true;
+    e.preventDefault();
+    if (enviandoRef.current) return; // ya hay un guardado en curso, ignora el clic extra
+    enviandoRef.current = true;
 
-        if (!idPersonaCliente || !fecha) {
+    if (!idPersonaCliente || !fecha) {
         alert('Selecciona un cliente y una fecha.');
         enviandoRef.current = false;
         return;
-        }
+    }
 
-        const lineasValidas = lineas.filter((l) => l.id_producto && l.peso_total_kg && l.id_presentacion);
-        if (lineasValidas.length === 0) {
-            alert('Agrega al menos un producto con cantidad.');
-            enviandoRef.current = false;
-            return;
-        }
+    const lineasValidas = lineas.filter((l) => l.id_producto && l.peso_total_kg && l.id_presentacion);
+    if (lineasValidas.length === 0) {
+        alert('Agrega al menos un producto con cantidad.');
+        enviandoRef.current = false;
+        return;
+    }
 
-        setGuardando(true);
-        try {
-            // 1. Creamos la cabecera de la factura, con el total ya calculado
-            const factura = await createFactura({
-                id_persona_cliente: idPersonaCliente,
-                fecha,
-                total_pagar: totalFactura,
-                descripcion,
-                id_estado: 1
+    setGuardando(true);
+    try {
+        // 1. Creamos la cabecera de la factura, con el total ya calculado
+        const factura = await createFactura({
+            id_persona_cliente: idPersonaCliente,
+            fecha,
+            total_pagar: totalFactura,
+            descripcion,
+            id_estado: 1
+        });
+
+        // 2. Creamos cada línea (producto vendido), una por una y en orden.
+        for (const linea of lineasValidas) {
+            await createProductoXFactura({
+                id_factura: factura.id,
+                id_producto: linea.id_producto,
+                id_presentacion: linea.id_presentacion,
+                peso_total_kg: linea.peso_total_kg,
+                precio_por_kg: linea.precio_por_kg,
+                subtotal: calcularSubtotal(linea)
             });
-
-            // 2. Creamos cada línea (producto vendido), una por una y en orden.
-            //    Importante: NO usamos Promise.all aquí. Si el mismo producto aparece en dos líneas,
-            //    el backend valida el stock leyendo la BD antes de descontar — hacerlo en paralelo
-            //    podría dejar que ambas líneas "vean" el mismo stock antes de que se actualice,
-            //    y se vendería más de lo que realmente hay disponible.
-            for (const linea of lineasValidas) {
-                await createProductoXFactura({
-                    id_factura: factura.id,
-                    id_producto: linea.id_producto,
-                    id_presentacion: linea.id_presentacion,
-                    peso_total_kg: linea.peso_total_kg,
-                    precio_por_kg: linea.precio_por_kg,
-                    subtotal: calcularSubtotal(linea)
-                });
-            }
-
-            alert(`Factura #${factura.id} creada correctamente. Total: $${totalFactura.toLocaleString('es-CO')}`);
-
-            // Reset del formulario
-            setIdPersonaCliente('');
-            setFecha('');
-            setDescripcion('');
-            setLineas([crearLineaVacia()]);
-        } catch (err) {
-        console.error(err);
-        alert(err.response?.data?.error || 'Error al guardar la factura. Revisa el stock de los productos.');
-        } finally {
-            setGuardando(false);
-            enviandoRef.current = false; // libera el candado, ya sea que salió bien o mal
         }
-    };
+
+        alert(`Factura #${factura.id} creada correctamente. Total: $${totalFactura.toLocaleString('es-CO')}`);
+
+        // Reset del formulario
+        setIdPersonaCliente('');
+        setFecha('');
+        setDescripcion('');
+        setLineas([crearLineaVacia()]);
+    } catch (err) {
+        console.error(err);
+        alert(err.response?.data?.error || 'Error al guardar la factura.');
+    } finally {
+        setGuardando(false);
+        enviandoRef.current = false; // libera el candado, ya sea que salió bien o mal
+    }
+};
 
     if (cargandoDatos) return <p>Cargando datos...</p>;
 

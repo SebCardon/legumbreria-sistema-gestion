@@ -9,7 +9,7 @@ const columnas = [
     { campo: 'id', titulo: 'ID' },
     { campo: 'nombre', titulo: 'Nombre' },
     { campo: 'apellido', titulo: 'Apellido' },
-    { campo: 'num_documento', titulo: 'Documento' },
+    { campo: 'num_documento', titulo: 'Documento', render: (fila) => fila.num_documento || '—' },
     { campo: 'telefono', titulo: 'Teléfono' },
     { campo: 'correo', titulo: 'Correo' },
     { campo: 'saldo_a_favor', titulo: 'Saldo a favor', render: (fila) => formatMoneda(fila.saldo_a_favor || 0) }
@@ -102,9 +102,9 @@ function PersonasPage() {
             <form onSubmit={handleSubmit}>
                 <input name="nombre" placeholder="Nombre" value={formData.nombre} onChange={handleChange} required />
                 <input name="apellido" placeholder="Apellido" value={formData.apellido} onChange={handleChange} required />
-                <input name="num_documento" placeholder="Documento" value={formData.num_documento} onChange={handleChange} required />
+                <input name="num_documento" placeholder="Documento" value={formData.num_documento} onChange={handleChange} />
 
-                <select name="id_tipo_documento" value={formData.id_tipo_documento} onChange={handleChange} required>
+                <select name="id_tipo_documento" value={formData.id_tipo_documento} onChange={handleChange} >
                     <option value="">-- Tipo de documento --</option>
                     {tiposDocumento.map((t) => (
                         <option key={t.id} value={t.id}>{t.nombre}</option>

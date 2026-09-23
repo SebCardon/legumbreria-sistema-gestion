@@ -29,10 +29,14 @@ const getPersonaById = async (req, res) => {
 const createPersona = async (req, res) => {
     try {
         const { nombre, apellido, num_documento, id_tipo_documento, telefono, correo, id_estado, id_rol } = req.body;
+
+        const numDocumentoFinal = num_documento === '' ? null : num_documento;
+        const idTipoDocumentoFinal = id_tipo_documento === '' || id_tipo_documento === undefined ? null : id_tipo_documento;
+
         const [result] = await pool.query(
             `INSERT INTO personas (nombre, apellido, num_documento, id_tipo_documento, telefono, correo, id_estado, id_rol)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [nombre, apellido, num_documento, id_tipo_documento, telefono, correo, id_estado, id_rol]
+            [nombre, apellido, numDocumentoFinal, idTipoDocumentoFinal, telefono, correo, id_estado, id_rol]
         );
         res.status(201).json({ id: result.insertId, ...req.body });
     } catch (error) {
@@ -41,14 +45,17 @@ const createPersona = async (req, res) => {
     }
 };
 
-// PUT /api/personas/:id
 const updatePersona = async (req, res) => {
     try {
         const { nombre, apellido, num_documento, id_tipo_documento, telefono, correo, id_estado, id_rol } = req.body;
+
+        const numDocumentoFinal = num_documento === '' ? null : num_documento;
+        const idTipoDocumentoFinal = id_tipo_documento === '' || id_tipo_documento === undefined ? null : id_tipo_documento;
+
         const [result] = await pool.query(
             `UPDATE personas SET nombre=?, apellido=?, num_documento=?, id_tipo_documento=?, telefono=?, correo=?, id_estado=?, id_rol=?
              WHERE id=?`,
-            [nombre, apellido, num_documento, id_tipo_documento, telefono, correo, id_estado, id_rol, req.params.id]
+            [nombre, apellido, numDocumentoFinal, idTipoDocumentoFinal, telefono, correo, id_estado, id_rol, req.params.id]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Persona no encontrada' });

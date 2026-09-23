@@ -3,7 +3,6 @@ const pool = require('../db');
 const ID_ESTADO_ACTIVO = 1;
 const ID_ESTADO_INACTIVO = 2;
 
-// GET /api/productos
 const getProductos = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM productos WHERE id_estado != ?', [ID_ESTADO_INACTIVO]);
@@ -14,7 +13,6 @@ const getProductos = async (req, res) => {
     }
 };
 
-// GET /api/productos/:id
 const getProductoById = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM productos WHERE id = ?', [req.params.id]);
@@ -28,14 +26,13 @@ const getProductoById = async (req, res) => {
     }
 };
 
-// POST /api/productos
 const createProducto = async (req, res) => {
     try {
-        const { nombre, descripcion, precio_venta_kg, costo_kg, cantidad_kg, id_categoria, id_estado } = req.body;
+        const { nombre, descripcion, precio_venta_kg, costo_kg, id_categoria, id_estado } = req.body;
         const [result] = await pool.query(
-            `INSERT INTO productos (nombre, descripcion, precio_venta_kg, costo_kg, cantidad_kg, id_categoria, id_estado)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [nombre, descripcion, precio_venta_kg, costo_kg, cantidad_kg ?? 0, id_categoria, id_estado ?? ID_ESTADO_ACTIVO]
+            `INSERT INTO productos (nombre, descripcion, precio_venta_kg, costo_kg, id_categoria, id_estado)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [nombre, descripcion, precio_venta_kg, costo_kg, id_categoria, id_estado ?? ID_ESTADO_ACTIVO]
         );
         res.status(201).json({ id: result.insertId, ...req.body });
     } catch (error) {
@@ -44,14 +41,13 @@ const createProducto = async (req, res) => {
     }
 };
 
-// PUT /api/productos/:id
 const updateProducto = async (req, res) => {
     try {
-        const { nombre, descripcion, precio_venta_kg, costo_kg, cantidad_kg, id_categoria, id_estado } = req.body;
+        const { nombre, descripcion, precio_venta_kg, costo_kg, id_categoria, id_estado } = req.body;
         const [result] = await pool.query(
-            `UPDATE productos SET nombre=?, descripcion=?, precio_venta_kg=?, costo_kg=?, cantidad_kg=?, id_categoria=?, id_estado=?
+            `UPDATE productos SET nombre=?, descripcion=?, precio_venta_kg=?, costo_kg=?, id_categoria=?, id_estado=?
              WHERE id=?`,
-            [nombre, descripcion, precio_venta_kg, costo_kg, cantidad_kg, id_categoria, id_estado, req.params.id]
+            [nombre, descripcion, precio_venta_kg, costo_kg, id_categoria, id_estado, req.params.id]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Producto no encontrado' });
@@ -63,7 +59,6 @@ const updateProducto = async (req, res) => {
     }
 };
 
-// PATCH /api/productos/:id/desactivar
 const desactivarProducto = async (req, res) => {
     try {
         const [result] = await pool.query(

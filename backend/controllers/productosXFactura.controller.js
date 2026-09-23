@@ -1,5 +1,13 @@
 const pool = require('../db');
 
+const recalcularTotalFactura = async (idFactura) => {
+    const [rows] = await pool.query(
+        'SELECT COALESCE(SUM(subtotal), 0) AS total FROM productos_x_factura WHERE id_factura = ?',
+        [idFactura]
+    );
+    await pool.query('UPDATE factura SET total_pagar = ? WHERE id = ?', [rows[0].total, idFactura]);
+};
+
 const getProductosXFactura = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM productos_x_factura');
@@ -10,7 +18,6 @@ const getProductosXFactura = async (req, res) => {
     }
 };
 
-// GET /api/productos-x-factura/factura/:id_factura -> todos los productos de UNA factura
 const getProductosXFacturaByFactura = async (req, res) => {
     try {
         const [rows] = await pool.query(
@@ -39,17 +46,9 @@ const createProductoXFactura = async (req, res) => {
     try {
         const { id_factura, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal } = req.body;
 
-        const [productoRows] = await pool.query('SELECT cantidad_kg FROM productos WHERE id = ?', [id_producto]);
+        const [productoRows] = await pool.query('SELECT id FROM productos WHERE id = ?', [id_producto]);
         if (productoRows.length === 0) {
             return res.status(404).json({ error: 'Producto no encontrado' });
-        }
-
-        // Convertimos AMBOS lados a número antes de comparar, para evitar comparación de texto
-        const stockDisponible = Number(productoRows[0].cantidad_kg);
-        const cantidadSolicitada = Number(peso_total_kg);
-
-        if (stockDisponible < cantidadSolicitada) {
-            return res.status(409).json({ error: `Stock insuficiente. Disponible: ${stockDisponible} kg, solicitado: ${cantidadSolicitada} kg` });
         }
 
         const [result] = await pool.query(
@@ -58,10 +57,7 @@ const createProductoXFactura = async (req, res) => {
             [id_factura, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal]
         );
 
-        await pool.query(
-            'UPDATE productos SET cantidad_kg = cantidad_kg - ? WHERE id = ?',
-            [cantidadSolicitada, id_producto]
-        );
+        await recalcularTotalFactura(id_factura);
 
         res.status(201).json({ id: result.insertId, ...req.body });
     } catch (error) {
@@ -79,6 +75,9 @@ const updateProductoXFactura = async (req, res) => {
             [id_factura, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal, req.params.id]
         );
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+
+        await recalcularTotalFactura(id_factura);
+
         res.json({ mensaje: 'Registro actualizado correctamente' });
     } catch (error) {
         console.error(error);
@@ -88,8 +87,15 @@ const updateProductoXFactura = async (req, res) => {
 
 const deleteProductoXFactura = async (req, res) => {
     try {
+        const [filaRows] = await pool.query('SELECT id_factura FROM productos_x_factura WHERE id = ?', [req.params.id]);
+        if (filaRows.length === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+        const idFacturaAfectada = filaRows[0].id_factura;
+
         const [result] = await pool.query('DELETE FROM productos_x_factura WHERE id = ?', [req.params.id]);
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+
+        await recalcularTotalFactura(idFacturaAfectada);
+
         res.json({ mensaje: 'Registro eliminado correctamente' });
     } catch (error) {
         console.error(error);

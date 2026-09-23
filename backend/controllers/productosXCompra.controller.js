@@ -1,5 +1,13 @@
 const pool = require('../db');
 
+const recalcularTotalCompra = async (idCompra) => {
+    const [rows] = await pool.query(
+        'SELECT COALESCE(SUM(subtotal), 0) AS total FROM productos_x_compra WHERE id_compra = ?',
+        [idCompra]
+    );
+    await pool.query('UPDATE compra SET total_compra = ? WHERE id = ?', [rows[0].total, idCompra]);
+};
+
 const getProductosXCompra = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM productos_x_compra');
@@ -10,7 +18,6 @@ const getProductosXCompra = async (req, res) => {
     }
 };
 
-// GET /api/productos-x-compra/compra/:id_compra -> todos los productos de UNA compra
 const getProductosXCompraByCompra = async (req, res) => {
     try {
         const [rows] = await pool.query(
@@ -44,11 +51,7 @@ const createProductoXCompra = async (req, res) => {
             [id_compra, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal]
         );
 
-        // Al comprar, el stock del producto aumenta
-        await pool.query(
-            'UPDATE productos SET cantidad_kg = cantidad_kg + ? WHERE id = ?',
-            [peso_total_kg, id_producto]
-        );
+        await recalcularTotalCompra(id_compra);
 
         res.status(201).json({ id: result.insertId, ...req.body });
     } catch (error) {
@@ -66,6 +69,9 @@ const updateProductoXCompra = async (req, res) => {
             [id_compra, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal, req.params.id]
         );
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+
+        await recalcularTotalCompra(id_compra);
+
         res.json({ mensaje: 'Registro actualizado correctamente' });
     } catch (error) {
         console.error(error);
@@ -75,8 +81,15 @@ const updateProductoXCompra = async (req, res) => {
 
 const deleteProductoXCompra = async (req, res) => {
     try {
+        const [filaRows] = await pool.query('SELECT id_compra FROM productos_x_compra WHERE id = ?', [req.params.id]);
+        if (filaRows.length === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+        const idCompraAfectada = filaRows[0].id_compra;
+
         const [result] = await pool.query('DELETE FROM productos_x_compra WHERE id = ?', [req.params.id]);
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Registro no encontrado' });
+
+        await recalcularTotalCompra(idCompraAfectada);
+
         res.json({ mensaje: 'Registro eliminado correctamente' });
     } catch (error) {
         console.error(error);

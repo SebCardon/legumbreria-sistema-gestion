@@ -1,21 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getProductos, createProducto, updateProducto, desactivarProducto } from '../services/productosService';
 import { getCategorias } from '../services/categoriaService';
+import { formatMoneda } from '../utils/format';
 import TablaGenerica from '../components/TablaGenerica';
-import { formatMoneda, formatNumero } from '../utils/format';
-
-const columnas = [
-    { campo: 'id', titulo: 'ID' },
-    { campo: 'nombre', titulo: 'Nombre' },
-    { campo: 'descripcion', titulo: 'Descripción' },
-    { campo: 'precio_venta_kg', titulo: 'Precio Venta/Kg', render: (fila) => formatMoneda(fila.precio_venta_kg) },
-    { campo: 'costo_kg', titulo: 'Costo/Kg', render: (fila) => formatMoneda(fila.costo_kg) },
-    { campo: 'cantidad_kg', titulo: 'Stock (Kg)', render: (fila) => formatNumero(fila.cantidad_kg) }
-];
 
 const formVacio = {
     nombre: '', descripcion: '', precio_venta_kg: '', costo_kg: '',
-    cantidad_kg: 0, id_categoria: '', id_estado: 1
+    id_categoria: '', id_estado: 1
 };
 
 function ProductosPage() {
@@ -34,6 +25,20 @@ function ProductosPage() {
     };
 
     useEffect(() => { cargarProductos(); }, []);
+
+    const nombreCategoria = (id) => {
+        const c = categorias.find((cat) => cat.id === id);
+        return c ? c.nombre : `ID ${id}`;
+    };
+
+    const columnas = [
+        { campo: 'id', titulo: 'ID' },
+        { campo: 'nombre', titulo: 'Nombre' },
+        { campo: 'descripcion', titulo: 'Descripción' },
+        { campo: 'precio_venta_kg', titulo: 'Precio Venta/Kg', render: (fila) => formatMoneda(fila.precio_venta_kg) },
+        { campo: 'costo_kg', titulo: 'Costo/Kg', render: (fila) => formatMoneda(fila.costo_kg) },
+        { campo: 'id_categoria', titulo: 'Categoría', render: (fila) => nombreCategoria(fila.id_categoria) }
+    ];
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -60,7 +65,6 @@ function ProductosPage() {
             descripcion: fila.descripcion || '',
             precio_venta_kg: fila.precio_venta_kg,
             costo_kg: fila.costo_kg,
-            cantidad_kg: fila.cantidad_kg,
             id_categoria: fila.id_categoria,
             id_estado: fila.id_estado
         });
@@ -89,7 +93,6 @@ function ProductosPage() {
                 <input name="descripcion" placeholder="Descripción" value={formData.descripcion} onChange={handleChange} />
                 <input name="precio_venta_kg" type="number" step="0.01" placeholder="Precio Venta/Kg" value={formData.precio_venta_kg} onChange={handleChange} required />
                 <input name="costo_kg" type="number" step="0.01" placeholder="Costo/Kg" value={formData.costo_kg} onChange={handleChange} required />
-                <input name="cantidad_kg" type="number" step="0.01" placeholder="Stock (Kg)" value={formData.cantidad_kg} onChange={handleChange} />
 
                 <select name="id_categoria" value={formData.id_categoria} onChange={handleChange} required>
                     <option value="">-- Categoría --</option>
