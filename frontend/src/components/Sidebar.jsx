@@ -41,7 +41,20 @@ function Sidebar({ paginaActiva, onCambiarPagina, usuario, onLogout }) {
             </div>
 
             <nav>
-                {/* ... tu contenido de GRUPOS igual que ya lo tienes ... */}
+                {GRUPOS.map((grupo) => (
+                    <div key={grupo.titulo} className="sidebar-grupo">
+                        <p className="sidebar-grupo-titulo">{grupo.titulo}</p>
+                        {grupo.items.map((item) => (
+                            <button
+                                key={item.key}
+                                className={`sidebar-link ${paginaActiva === item.key ? 'activo' : ''}`}
+                                onClick={() => onCambiarPagina(item.key)}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                ))}
             </nav>
 
             {usuario && (
