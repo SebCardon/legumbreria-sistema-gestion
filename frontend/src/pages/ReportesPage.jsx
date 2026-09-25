@@ -21,7 +21,7 @@ function calcularRango(periodo) {
     if (periodo === 'hoy') {
         inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0);
     } else if (periodo === 'semana') {
-        const diaSemana = ahora.getDay(); // 0 = domingo
+        const diaSemana = ahora.getDay();
         const diffLunes = diaSemana === 0 ? 6 : diaSemana - 1;
         inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - diffLunes, 0, 0, 0);
     } else {
@@ -76,24 +76,23 @@ function ReportesPage() {
     const lineasCompraFiltradas = lineasCompra.filter((l) => compraDentroDelRango(l.id_compra));
     const lineasFacturaFiltradas = lineasFactura.filter((l) => facturaDentroDelRango(l.id_factura));
 
-    // Agrupamos por producto
     const mapa = new Map();
     const asegurarEntrada = (idProducto) => {
         if (!mapa.has(idProducto)) {
-            mapa.set(idProducto, { kgComprado: 0, kgVendido: 0, valorComprado: 0, valorVendido: 0 });
+            mapa.set(idProducto, { kgEntrada: 0, kgSalida: 0, valorEntrada: 0, valorSalida: 0 });
         }
         return mapa.get(idProducto);
     };
 
     lineasCompraFiltradas.forEach((l) => {
         const entrada = asegurarEntrada(l.id_producto);
-        entrada.kgComprado += Number(l.peso_total_kg);
-        entrada.valorComprado += Number(l.subtotal);
+        entrada.kgEntrada += Number(l.peso_total_kg);
+        entrada.valorEntrada += Number(l.subtotal);
     });
     lineasFacturaFiltradas.forEach((l) => {
         const entrada = asegurarEntrada(l.id_producto);
-        entrada.kgVendido += Number(l.peso_total_kg);
-        entrada.valorVendido += Number(l.subtotal);
+        entrada.kgSalida += Number(l.peso_total_kg);
+        entrada.valorSalida += Number(l.subtotal);
     });
 
     const nombreProducto = (id) => {
@@ -104,33 +103,35 @@ function ReportesPage() {
     const filas = Array.from(mapa.entries())
         .map(([idProducto, datos]) => ({
             producto: nombreProducto(idProducto),
-            kgComprado: datos.kgComprado,
-            kgVendido: datos.kgVendido,
-            diferencia: datos.kgComprado - datos.kgVendido,
-            valorComprado: datos.valorComprado,
-            valorVendido: datos.valorVendido
+            kgEntrada: datos.kgEntrada,
+            kgSalida: datos.kgSalida,
+            valorEntrada: datos.valorEntrada,
+            valorSalida: datos.valorSalida
         }))
         .sort((a, b) => a.producto.localeCompare(b.producto));
 
-    const totalCompradoValor = filas.reduce((acc, f) => acc + f.valorComprado, 0);
-    const totalVendidoValor = filas.reduce((acc, f) => acc + f.valorVendido, 0);
-    const totalCompradoKg = filas.reduce((acc, f) => acc + f.kgComprado, 0);
-    const totalVendidoKg = filas.reduce((acc, f) => acc + f.kgVendido, 0);
-    const utilidad = totalVendidoValor - totalCompradoValor;
+    const totalEntradaValor = filas.reduce((acc, f) => acc + f.valorEntrada, 0);
+    const totalSalidaValor = filas.reduce((acc, f) => acc + f.valorSalida, 0);
+    const totalEntradaKg = filas.reduce((acc, f) => acc + f.kgEntrada, 0);
+    const totalSalidaKg = filas.reduce((acc, f) => acc + f.kgSalida, 0);
 
     const periodoLabel = OPCIONES_PERIODO.find((o) => o.key === periodo)?.label || periodo;
 
     const handleDescargarPDF = () => {
         generarReportePDF({
             periodoLabel,
-            resumen: { totalCompradoValor, totalVendidoValor, utilidad, totalCompradoKg, totalVendidoKg },
+            resumen: { totalEntradaValor, totalSalidaValor, totalEntradaKg, totalSalidaKg },
             filas
         });
     };
 
     return (
         <div>
-            <h2>Reportes</h2>
+            <h2>Reportes — Entradas y Salidas</h2>
+            <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px', marginTop: '-12px', marginBottom: '20px', maxWidth: '640px' }}>
+                Este reporte muestra únicamente las compras y facturas <strong>registradas en el sistema</strong>.
+                No es un balance financiero completo del negocio — ventas informales sin factura no quedan reflejadas aquí.
+            </p>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                 {OPCIONES_PERIODO.map((op) => (
@@ -149,20 +150,14 @@ function ReportesPage() {
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                 <div style={{ flex: 1, background: 'var(--color-surface)', border: '1px solid var(--color-line)', borderRadius: '4px', padding: '14px' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '0 0 6px 0' }}>Total comprado</p>
-                    <p style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{formatMoneda(totalCompradoValor)}</p>
-                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '4px 0 0 0' }}>{formatNumero(totalCompradoKg)} kg</p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '0 0 6px 0' }}>Entradas (compras registradas)</p>
+                    <p style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{formatMoneda(totalEntradaValor)}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '4px 0 0 0' }}>{formatNumero(totalEntradaKg)} kg</p>
                 </div>
                 <div style={{ flex: 1, background: 'var(--color-surface)', border: '1px solid var(--color-line)', borderRadius: '4px', padding: '14px' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '0 0 6px 0' }}>Total vendido</p>
-                    <p style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{formatMoneda(totalVendidoValor)}</p>
-                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '4px 0 0 0' }}>{formatNumero(totalVendidoKg)} kg</p>
-                </div>
-                <div style={{ flex: 1, background: 'var(--color-surface)', border: '1px solid var(--color-line)', borderRadius: '4px', padding: '14px' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '0 0 6px 0' }}>Utilidad bruta</p>
-                    <p style={{ fontSize: '20px', fontWeight: 600, margin: 0, color: utilidad >= 0 ? 'var(--color-primary-dark)' : 'var(--color-danger)' }}>
-                        {formatMoneda(utilidad)}
-                    </p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '0 0 6px 0' }}>Salidas (facturas registradas)</p>
+                    <p style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{formatMoneda(totalSalidaValor)}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-ink-soft)', margin: '4px 0 0 0' }}>{formatNumero(totalSalidaKg)} kg</p>
                 </div>
             </div>
 
@@ -173,22 +168,20 @@ function ReportesPage() {
                     <thead>
                         <tr>
                             <th>Producto</th>
-                            <th>Kg comprados</th>
-                            <th>Kg vendidos</th>
-                            <th>Diferencia</th>
-                            <th>$ comprado</th>
-                            <th>$ vendido</th>
+                            <th>Kg entraron</th>
+                            <th>Kg salieron</th>
+                            <th>$ entrada</th>
+                            <th>$ salida</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filas.map((fila) => (
                             <tr key={fila.producto}>
                                 <td>{fila.producto}</td>
-                                <td>{formatNumero(fila.kgComprado)}</td>
-                                <td>{formatNumero(fila.kgVendido)}</td>
-                                <td>{formatNumero(fila.diferencia)}</td>
-                                <td>{formatMoneda(fila.valorComprado)}</td>
-                                <td>{formatMoneda(fila.valorVendido)}</td>
+                                <td>{formatNumero(fila.kgEntrada)}</td>
+                                <td>{formatNumero(fila.kgSalida)}</td>
+                                <td>{formatMoneda(fila.valorEntrada)}</td>
+                                <td>{formatMoneda(fila.valorSalida)}</td>
                             </tr>
                         ))}
                     </tbody>
