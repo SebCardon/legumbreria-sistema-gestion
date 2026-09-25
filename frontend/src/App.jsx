@@ -19,6 +19,7 @@ import ProductosXFacturaPage from './pages/ProductosXFacturaPage';
 import NuevaFacturaPage from './pages/NuevaFacturaPage';
 import NuevaCompraPage from './pages/NuevaCompraPage'
 import NuevoAbonoPage from './pages/NuevoAbonoPage';
+import ReportesPage from './pages/ReportesPage';
 
 const PAGINAS = {
     nuevaFactura: NuevaFacturaPage,
@@ -27,6 +28,7 @@ const PAGINAS = {
     facturas: FacturaPage,
     compras: CompraPage,
     transporte: TransportePage,
+    reportes: ReportesPage,
     productosXCompra: ProductosXCompraPage,
     productosXFactura: ProductosXFacturaPage,
     personas: PersonasPage,
