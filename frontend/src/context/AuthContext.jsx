@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -9,14 +8,6 @@ export function AuthProvider({ children }) {
         const guardado = localStorage.getItem('usuario');
         return guardado ? JSON.parse(guardado) : null;
     });
-
-    useEffect(() => {
-        if (token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        } else {
-            delete axios.defaults.headers.common['Authorization'];
-        }
-    }, [token]);
 
     const login = (nuevoToken, nuevoUsuario) => {
         localStorage.setItem('token', nuevoToken);
