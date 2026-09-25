@@ -34,11 +34,17 @@ function LoginPage() {
     return (
         <div style={{
             minHeight: '100vh', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)'
+            alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary)'
         }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Legumbrería</h1>
-            <p style={{ color: 'var(--color-ink-soft)', marginBottom: '28px' }}>Sistema de gestión</p>
-            <div ref={botonRef}></div>
+            <h1 style={{ fontFamily: 'var(--font-display)', marginBottom: '4px', color: 'white' }}>
+                Legumbrería
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.85)', marginBottom: '28px' }}>
+                Sistema de gestión
+            </p>
+            <div style={{ background: 'white', padding: '20px 28px', borderRadius: '6px' }}>
+                <div ref={botonRef}></div>
+            </div>
         </div>
     );
 }
