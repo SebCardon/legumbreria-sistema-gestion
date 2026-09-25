@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import './App.css';
+import { useAuth } from './context/AuthContext';
+import LoginPage from './pages/LoginPage'
 import Sidebar from './components/Sidebar';
 import PersonasPage from './pages/PersonasPage';
 import ProductosPage from './pages/ProductosPage';
@@ -38,12 +40,23 @@ const PAGINAS = {
 };
 
 function App() {
+    const { estaAutenticado, usuario, logout } = useAuth();
     const [paginaActiva, setPaginaActiva] = useState('nuevaFactura');
+
+    if (!estaAutenticado) {
+        return <LoginPage />;
+    }
+
     const PaginaActual = PAGINAS[paginaActiva];
 
     return (
         <div className="app-layout">
-            <Sidebar paginaActiva={paginaActiva} onCambiarPagina={setPaginaActiva} />
+            <Sidebar
+                paginaActiva={paginaActiva}
+                onCambiarPagina={setPaginaActiva}
+                usuario={usuario}
+                onLogout={logout}
+            />
             <main className="content">
                 <PaginaActual />
             </main>

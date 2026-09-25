@@ -15,6 +15,8 @@ const productosXCompraRoutes = require('./routes/productosXCompra.routes');
 const productosXFacturaRoutes = require('./routes/productosXFactura.routes');
 const estadoRoutes = require('./routes/estado.routes')
 const abonoRoutes = require('./routes/abono.routes');
+const authRoutes = require('./routes/auth.routes');
+const { protegerRutasApi } = require('./middleware/verificarToken');
 
 
 const app = express();
@@ -27,6 +29,8 @@ app.get('/', (req, res) => {
     res.json({ mensaje: 'Backend de la Legumbrería funcionando correctamente' });
 });
 
+app.use('/api', protegerRutasApi);
+app.use('/api/auth', authRoutes);
 app.use('/api/personas', personasRoutes);   
 app.use('/api/productos', productosRoutes);
 app.use('/api/proveedores', proveedorRoutes);

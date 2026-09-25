@@ -32,7 +32,7 @@ const GRUPOS = [
     }
 ];
 
-function Sidebar({ paginaActiva, onCambiarPagina }) {
+function Sidebar({ paginaActiva, onCambiarPagina, usuario, onLogout }) {
     return (
         <aside className="sidebar">
             <div className="sidebar-brand">
@@ -41,21 +41,21 @@ function Sidebar({ paginaActiva, onCambiarPagina }) {
             </div>
 
             <nav>
-                {GRUPOS.map((grupo) => (
-                    <div key={grupo.titulo} className="sidebar-grupo">
-                        <p className="sidebar-grupo-titulo">{grupo.titulo}</p>
-                        {grupo.items.map((item) => (
-                            <button
-                                key={item.key}
-                                className={`sidebar-link ${paginaActiva === item.key ? 'activo' : ''}`}
-                                onClick={() => onCambiarPagina(item.key)}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-                ))}
+                {/* ... tu contenido de GRUPOS igual que ya lo tienes ... */}
             </nav>
+
+            {usuario && (
+                <div style={{
+                    marginTop: 'auto', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', margin: '0 0 6px 0' }}>
+                        {usuario.nombre}
+                    </p>
+                    <button onClick={onLogout} className="sidebar-link" style={{ padding: '6px 0' }}>
+                        Cerrar sesión
+                    </button>
+                </div>
+            )}
         </aside>
     );
 }
