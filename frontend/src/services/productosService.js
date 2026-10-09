@@ -3,6 +3,8 @@ import { API_BASE_URL } from './apiConfig';
 
 const API_URL = `${API_BASE_URL}/productos`;
 
+export const getCatalogoProductos = async () => (await axios.get(`${API_URL}/catalogo`)).data;
+
 export const getProductos = async () => {
     const response = await axios.get(API_URL);
     return response.data;

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProductos, createProducto, updateProducto, desactivarProducto } from '../services/productosService';
+import { getProductos, getProductoById, createProducto, updateProducto, desactivarProducto } from '../services/productosService';
 import { getCategorias } from '../services/categoriaService';
 import { formatMoneda } from '../utils/format';
+import { redimensionarImagen } from '../utils/imagen';
 import TablaGenerica from '../components/TablaGenerica';
 
 const formVacio = {
@@ -15,6 +16,8 @@ function ProductosPage() {
     const [cargando, setCargando] = useState(true);
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
+    const [preview, setPreview] = useState(null);
+    const [inputArchivoKey, setInputArchivoKey] = useState(0);
 
     const cargarProductos = async () => {
         setCargando(true);
@@ -40,7 +43,27 @@ function ProductosPage() {
         { campo: 'id_categoria', titulo: 'Categoría', render: (fila) => nombreCategoria(fila.id_categoria) }
     ];
 
+    const limpiarFormulario = () => {
+        setFormData(formVacio);
+        setEditandoId(null);
+        setPreview(null);
+        setInputArchivoKey((k) => k + 1); // fuerza a vaciar el input de archivo
+    };
+
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleImagen = async (e) => {
+        const archivo = e.target.files[0];
+        if (!archivo) return;
+        try {
+            const dataUrl = await redimensionarImagen(archivo);
+            setFormData((prev) => ({ ...prev, imagen: dataUrl }));
+            setPreview(dataUrl);
+        } catch (err) {
+            console.error(err);
+            alert('No se pudo procesar la imagen.');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -50,8 +73,7 @@ function ProductosPage() {
             } else {
                 await createProducto(formData);
             }
-            setFormData(formVacio);
-            setEditandoId(null);
+            limpiarFormulario();
             cargarProductos();
         } catch (err) {
             console.error(err);
@@ -59,7 +81,7 @@ function ProductosPage() {
         }
     };
 
-    const handleEditar = (fila) => {
+    const handleEditar = async (fila) => {
         setFormData({
             nombre: fila.nombre,
             descripcion: fila.descripcion || '',
@@ -69,9 +91,17 @@ function ProductosPage() {
             id_estado: fila.id_estado
         });
         setEditandoId(fila.id);
-    };
+        setPreview(null);
+        setInputArchivoKey((k) => k + 1);
 
-    const handleCancelar = () => { setFormData(formVacio); setEditandoId(null); };
+        // El listado no trae la imagen; la pedimos aparte solo para mostrar la vista previa actual
+        try {
+            const completo = await getProductoById(fila.id);
+            setPreview(completo.imagen || null);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const handleDesactivar = async (fila) => {
         try {
@@ -101,8 +131,18 @@ function ProductosPage() {
                     ))}
                 </select>
 
+                <label>{editandoId ? 'Imagen (solo si quieres cambiarla):' : 'Imagen (opcional):'}</label>
+                <input key={inputArchivoKey} type="file" accept="image/*" onChange={handleImagen} />
+                {preview && (
+                    <img
+                        src={preview}
+                        alt="Vista previa"
+                        style={{ width: '44px', height: '44px', objectFit: 'cover', border: '1px solid var(--color-line)', borderRadius: '3px' }}
+                    />
+                )}
+
                 <button type="submit">{editandoId ? 'Guardar cambios' : 'Agregar Producto'}</button>
-                {editandoId && <button type="button" onClick={handleCancelar}>Cancelar</button>}
+                {editandoId && <button type="button" onClick={limpiarFormulario}>Cancelar</button>}
             </form>
             <TablaGenerica
                 columnas={columnas}
