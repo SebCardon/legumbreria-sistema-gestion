@@ -118,7 +118,7 @@ function ProductosPage() {
     return (
         <div>
             <h2>Productos</h2>
-            <form onSubmit={handleSubmit}>
+            <form className="form-sticky" onSubmit={handleSubmit}>
                 <input name="nombre" placeholder="Nombre" value={formData.nombre} onChange={handleChange} required />
                 <input name="descripcion" placeholder="Descripción" value={formData.descripcion} onChange={handleChange} />
                 <input name="precio_venta_kg" type="number" step="0.01" placeholder="Precio Venta/Kg" value={formData.precio_venta_kg} onChange={handleChange} required />

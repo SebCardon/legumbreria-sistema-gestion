@@ -350,3 +350,19 @@
         max-height: none;
     }
 }
+
+/* Formulario que acompaña al scroll (útil en tablas largas) */
+.content form.form-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* En pantallas bajas, un formulario fijo taparía demasiada tabla */
+@media (max-height: 600px) {
+    .content form.form-sticky {
+        position: static;
+        box-shadow: none;
+    }
+}
