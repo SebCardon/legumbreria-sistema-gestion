@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-    getFacturas, createFactura, updateFactura, desactivarFactura, getFacturasCanceladas
+    getFacturas, createFactura, updateFactura, desactivarFactura,
+    getFacturasCanceladas, reactivarFactura
 } from '../services/facturaService';
 import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
@@ -32,8 +33,12 @@ function FacturaPage() {
 
     const cargar = async () => {
         setCargando(true);
-        const [dataItems, dataCanceladas, dataPersonas, dataRoles, dataAbonos, dataProductos, dataPresentaciones] = await Promise.all([
-            getFacturas(), getFacturasCanceladas(), getPersonas(), getRoles(), getAbonos(), getProductos(), getPresentaciones()
+        const [
+            dataItems, dataCanceladas, dataPersonas, dataRoles,
+            dataAbonos, dataProductos, dataPresentaciones
+        ] = await Promise.all([
+            getFacturas(), getFacturasCanceladas(), getPersonas(), getRoles(),
+            getAbonos(), getProductos(), getPresentaciones()
         ]);
 
         const rolCliente = dataRoles.find((r) => r.nombre.toLowerCase() === 'cliente');
@@ -76,6 +81,17 @@ function FacturaPage() {
         { campo: 'abonado', titulo: 'Abonado', render: (fila) => formatMoneda(totalAbonado(fila.id)) },
         { campo: 'pendiente', titulo: 'Pendiente', render: (fila) => formatMoneda(saldoPendiente(fila)) },
         { campo: 'descripcion', titulo: 'Descripción' }
+    ];
+
+    const columnasCanceladas = [
+        ...columnas,
+        {
+            campo: 'dias_restantes',
+            titulo: 'Se elimina en',
+            render: (fila) => fila.tiene_abonos
+                ? 'No se elimina (tiene abonos)'
+                : `${fila.dias_restantes} día(s)`
+        }
     ];
 
     const itemsFiltrados = items.filter((fila) => {
@@ -128,13 +144,7 @@ function FacturaPage() {
 
     const handleReactivar = async (fila) => {
         try {
-            await updateFactura(fila.id, {
-                id_persona_cliente: fila.id_persona_cliente,
-                fecha: fila.fecha ? fila.fecha.slice(0, 16) : '',
-                total_pagar: fila.total_pagar,
-                descripcion: fila.descripcion || '',
-                id_estado: 1
-            });
+            await reactivarFactura(fila.id);
             cargar();
         } catch (err) {
             console.error(err);
@@ -143,11 +153,11 @@ function FacturaPage() {
     };
 
     const cerrarVisor = () => {
-    if (visor) URL.revokeObjectURL(visor.url); // libera la memoria del PDF temporal
-    setVisor(null);
+        if (visor) URL.revokeObjectURL(visor.url); // libera la memoria del PDF temporal
+        setVisor(null);
     };
 
-    const handleDescargarPDF = async (fila) => {
+    const handleVerPDF = async (fila) => {
         try {
             const detalles = await getProductosXFacturaByFactura(fila.id);
             const lineas = detalles.map((d) => {
@@ -184,6 +194,7 @@ function FacturaPage() {
             <p style={{ color: 'var(--color-ink-soft)', marginTop: '-12px', marginBottom: '16px', fontSize: '13px' }}>
                 Para registrar una factura nueva con sus productos, usa "Nueva Factura" en el menú.
             </p>
+
             <form onSubmit={handleSubmit}>
                 <select name="id_persona_cliente" value={formData.id_persona_cliente} onChange={handleChange} required>
                     <option value="">-- Cliente --</option>
@@ -210,7 +221,7 @@ function FacturaPage() {
                 columnas={columnas}
                 datos={itemsFiltrados}
                 acciones={[
-                    { etiqueta: 'Ver', onClick: handleDescargarPDF },
+                    { etiqueta: 'Ver', onClick: handleVerPDF },
                     { etiqueta: 'Editar', onClick: handleEditar },
                     { etiqueta: 'Cancelar', onClick: handleCancelarFactura, tipo: 'peligro' }
                 ]}
@@ -229,17 +240,23 @@ function FacturaPage() {
                     {canceladas.length === 0 ? (
                         <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas canceladas.</p>
                     ) : (
-                        <TablaGenerica
-                            columnas={columnas}
-                            datos={canceladas}
-                            acciones={[
-                                { etiqueta: 'Ver', onClick: handleDescargarPDF },
-                                { etiqueta: 'Reactivar', onClick: handleReactivar }
-                            ]}
-                        />
+                        <>
+                            <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px', marginTop: 0 }}>
+                                Las facturas canceladas sin abonos se eliminan automáticamente al cumplirse el plazo de la columna "Se elimina en". Si reactivas una, el plazo se descarta.
+                            </p>
+                            <TablaGenerica
+                                columnas={columnasCanceladas}
+                                datos={canceladas}
+                                acciones={[
+                                    { etiqueta: 'Ver', onClick: handleVerPDF },
+                                    { etiqueta: 'Reactivar', onClick: handleReactivar }
+                                ]}
+                            />
+                        </>
                     )}
                 </div>
             )}
+
             {visor && (
                 <VisorPDF
                     url={visor.url}

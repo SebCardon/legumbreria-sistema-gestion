@@ -1,8 +1,28 @@
 const pool = require('../db');
+const { DIAS_RETENCION } = require('../config/retencion');
+
+const ID_ESTADO_ACTIVO = 1;
+const ID_ESTADO_INACTIVO = 2;
 
 const getCompras = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM compra');
+        const [rows] = await pool.query('SELECT * FROM compra WHERE id_estado != ?', [ID_ESTADO_INACTIVO]);
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const getComprasCanceladas = async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT c.*,
+                    GREATEST(? - DATEDIFF(NOW(), c.fecha_cancelacion), 0) AS dias_restantes
+             FROM compra c
+             WHERE c.id_estado = ?`,
+            [DIAS_RETENCION, ID_ESTADO_INACTIVO]
+        );
         res.json(rows);
     } catch (error) {
         console.error(error);
@@ -52,18 +72,35 @@ const updateCompra = async (req, res) => {
     }
 };
 
-const deleteCompra = async (req, res) => {
+const desactivarCompra = async (req, res) => {
     try {
-        const [result] = await pool.query('DELETE FROM compra WHERE id = ?', [req.params.id]);
+        const [result] = await pool.query(
+            'UPDATE compra SET id_estado = ?, fecha_cancelacion = NOW() WHERE id = ?',
+            [ID_ESTADO_INACTIVO, req.params.id]
+        );
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Compra no encontrada' });
-        res.json({ mensaje: 'Compra eliminada correctamente' });
+        res.json({ mensaje: 'Compra cancelada correctamente' });
     } catch (error) {
         console.error(error);
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({ error: 'No se puede eliminar: la compra tiene productos asociados' });
-        }
         res.status(500).json({ error: error.message });
     }
 };
 
-module.exports = { getCompras, getCompraById, createCompra, updateCompra, deleteCompra };
+const reactivarCompra = async (req, res) => {
+    try {
+        const [result] = await pool.query(
+            'UPDATE compra SET id_estado = ?, fecha_cancelacion = NULL WHERE id = ?',
+            [ID_ESTADO_ACTIVO, req.params.id]
+        );
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Compra no encontrada' });
+        res.json({ mensaje: 'Compra reactivada correctamente' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = {
+    getCompras, getComprasCanceladas, getCompraById,
+    createCompra, updateCompra, desactivarCompra, reactivarCompra
+};

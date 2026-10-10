@@ -17,6 +17,7 @@ const estadoRoutes = require('./routes/estado.routes')
 const abonoRoutes = require('./routes/abono.routes');
 const authRoutes = require('./routes/auth.routes');
 const { protegerRutasApi } = require('./middleware/verificarToken');
+const { iniciarLimpiezaAutomatica } = require('./jobs/limpiezaCancelados');
 
 
 const app = express();
@@ -48,4 +49,5 @@ app.use('/api/abonos', abonoRoutes);
 
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+    iniciarLimpiezaAutomatica();
 });
