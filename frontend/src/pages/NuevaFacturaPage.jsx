@@ -6,16 +6,10 @@ import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
 import { createFactura } from '../services/facturaService';
 import { createProductoXFactura } from '../services/productosXFacturaService';
-import { formatMoneda } from '../utils/format';
-import VisorPDF from '../components/VisorPDF';
+import { createAbono } from '../services/abonoService';
+import { formatMoneda, ahoraLocal } from '../utils/format';
 import { generarFacturaPDF } from '../utils/facturaPdf';
-
-// Fecha y hora actuales en el formato que entiende <input type="datetime-local">
-const ahoraLocal = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-};
+import VisorPDF from '../components/VisorPDF';
 
 function NuevaFacturaPage() {
     const [productos, setProductos] = useState([]);
@@ -30,19 +24,14 @@ function NuevaFacturaPage() {
     const [idPersonaCliente, setIdPersonaCliente] = useState('');
     const [fecha, setFecha] = useState(ahoraLocal());
     const [descripcion, setDescripcion] = useState('');
+    const [pagoCompleto, setPagoCompleto] = useState(false);
     const [lineas, setLineas] = useState([]);
     const [guardando, setGuardando] = useState(false);
+    const [visor, setVisor] = useState(null);
 
     const enviandoRef = useRef(false);
     const contadorRef = useRef(0);
     const enfocarUidRef = useRef(null);
-
-    const [visor, setVisor] = useState(null);
-
-    const cerrarVisor = () => {
-        if (visor) URL.revokeObjectURL(visor.url);
-        setVisor(null);
-    };
 
     useEffect(() => {
         const cargar = async () => {
@@ -69,6 +58,11 @@ function NuevaFacturaPage() {
     const nombreProducto = (id) => {
         const p = productos.find((prod) => prod.id === id);
         return p ? p.nombre : `Producto ${id}`;
+    };
+
+    const cerrarVisor = () => {
+        if (visor) URL.revokeObjectURL(visor.url);
+        setVisor(null);
     };
 
     const agregarProducto = (producto) => {
@@ -123,7 +117,7 @@ function NuevaFacturaPage() {
             return;
         }
 
-        enviandoRef.current = true;
+        enviandoRef.current = true; // candado inmediato contra doble clic
         setGuardando(true);
         try {
             const factura = await createFactura({
@@ -145,8 +139,26 @@ function NuevaFacturaPage() {
                 });
             }
 
-            // La factura ya quedó guardada. Ahora armamos el PDF y lo mostramos de inmediato.
-            // Va en su propio try/catch: si el PDF fallara, no debe parecer que la factura no se guardó.
+            // Venta de contado: se registra el pago completo. Va aparte para que, si fallara,
+            // no parezca que la factura no se guardó.
+            let pagoRegistrado = false;
+            if (pagoCompleto && totalFactura > 0) {
+                try {
+                    await createAbono({
+                        id_persona_cliente: idPersonaCliente,
+                        id_factura: factura.id,
+                        fecha,
+                        valor: totalFactura,
+                        descripcion: 'Pago de contado'
+                    });
+                    pagoRegistrado = true;
+                } catch (errAbono) {
+                    console.error(errAbono);
+                    alert(`La factura #${factura.id} se guardó, pero no se pudo registrar el pago. Regístralo desde "Facturas" con "Cancelar saldo".`);
+                }
+            }
+
+            // Se muestra la factura de inmediato, también en su propio try/catch
             try {
                 const cliente = clientes.find((c) => c.id === Number(idPersonaCliente));
                 const lineasPdf = lineas.map((l) => {
@@ -162,7 +174,7 @@ function NuevaFacturaPage() {
                     factura,
                     clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : '',
                     lineas: lineasPdf,
-                    totalAbonado: 0
+                    totalAbonado: pagoRegistrado ? totalFactura : 0
                 });
                 setVisor({ url, nombreArchivo, titulo: `Factura #${factura.id} creada` });
             } catch (errPdf) {
@@ -173,6 +185,7 @@ function NuevaFacturaPage() {
             setIdPersonaCliente('');
             setFecha(ahoraLocal());
             setDescripcion('');
+            setPagoCompleto(false);
             setLineas([]);
         } catch (err) {
             console.error(err);
@@ -316,6 +329,15 @@ function NuevaFacturaPage() {
                         ))}
                     </div>
 
+                    <label className="pos-pago">
+                        <input
+                            type="checkbox"
+                            checked={pagoCompleto}
+                            onChange={(e) => setPagoCompleto(e.target.checked)}
+                        />
+                        Pagó completo (venta de contado)
+                    </label>
+
                     <div className="pos-total">
                         <span>TOTAL</span>
                         <span>{formatMoneda(totalFactura)}</span>
@@ -326,6 +348,7 @@ function NuevaFacturaPage() {
                     </button>
                 </aside>
             </div>
+
             {visor && (
                 <VisorPDF
                     url={visor.url}

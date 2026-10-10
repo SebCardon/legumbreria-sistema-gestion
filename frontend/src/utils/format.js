@@ -7,3 +7,10 @@ export const formatNumero = (valor) => {
 
 // Igual que formatNumero, pero con símbolo de moneda
 export const formatMoneda = (valor) => `$${formatNumero(valor)}`;
+
+// Fecha y hora actuales en el formato de <input type="datetime-local">
+export const ahoraLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+};

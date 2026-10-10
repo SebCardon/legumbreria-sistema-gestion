@@ -429,3 +429,17 @@
     background: var(--color-primary);
     color: white;
 }
+
+.content .pos-pago {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0 0;
+    font-size: 14px;
+    color: var(--color-ink);
+}
+
+.content .pos-pago input {
+    width: auto;
+    padding: 0;
+}

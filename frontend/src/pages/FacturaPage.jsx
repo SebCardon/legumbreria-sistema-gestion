@@ -1,25 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     getFacturas, createFactura, updateFactura, desactivarFactura,
     getFacturasCanceladas, reactivarFactura
 } from '../services/facturaService';
 import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
-import { getAbonos } from '../services/abonoService';
+import { getAbonos, createAbono } from '../services/abonoService';
 import { getProductosXFacturaByFactura } from '../services/productosXFacturaService';
 import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
-import { formatMoneda } from '../utils/format';
+import { formatMoneda, ahoraLocal } from '../utils/format';
 import { generarFacturaPDF } from '../utils/facturaPdf';
 import TablaGenerica from '../components/TablaGenerica';
 import VisorPDF from '../components/VisorPDF';
 
+const DIAS_PAGADAS_VISIBLES = 60;
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
 const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripcion: '', id_estado: 1 };
 
+const estiloToggle = {
+    marginTop: '20px',
+    background: 'transparent',
+    color: 'var(--color-primary-dark)',
+    border: '1px solid var(--color-primary)'
+};
+
 function FacturaPage() {
-    const [items, setItems] = useState([]);
-    const [canceladas, setCanceladas] = useState([]);
-    const [mostrarCanceladas, setMostrarCanceladas] = useState(false);
+    const [items, setItems] = useState([]);       // facturas activas: por cobrar + pagadas
+    const [anuladas, setAnuladas] = useState([]);
+    const [mostrarPagadas, setMostrarPagadas] = useState(false);
+    const [mostrarAnuladas, setMostrarAnuladas] = useState(false);
+    const [incluirAntiguas, setIncluirAntiguas] = useState(false);
     const [clientes, setClientes] = useState([]);
     const [todasLasPersonas, setTodasLasPersonas] = useState([]);
     const [abonos, setAbonos] = useState([]);
@@ -30,11 +42,12 @@ function FacturaPage() {
     const [editandoId, setEditandoId] = useState(null);
     const [busqueda, setBusqueda] = useState('');
     const [visor, setVisor] = useState(null);
+    const procesandoRef = useRef(false);
 
     const cargar = async () => {
         setCargando(true);
         const [
-            dataItems, dataCanceladas, dataPersonas, dataRoles,
+            dataItems, dataAnuladas, dataPersonas, dataRoles,
             dataAbonos, dataProductos, dataPresentaciones
         ] = await Promise.all([
             getFacturas(), getFacturasCanceladas(), getPersonas(), getRoles(),
@@ -52,7 +65,7 @@ function FacturaPage() {
         setProductos(dataProductos);
         setPresentaciones(dataPresentaciones);
         setItems(dataItems);
-        setCanceladas(dataCanceladas);
+        setAnuladas(dataAnuladas);
         setCargando(false);
     };
 
@@ -73,6 +86,31 @@ function FacturaPage() {
         return Math.max(Number(fila.total_pagar) - totalAbonado(fila.id), 0);
     };
 
+    // Pagada = tiene un total por cobrar y ya se abonó todo. Se calcula en cada momento,
+    // así que si una factura pagada cambia de total, vuelve sola a "Por cobrar".
+    const estaPagada = (fila) => Number(fila.total_pagar) > 0 && saldoPendiente(fila) < 0.005;
+
+    const fechaPago = (idFactura) => {
+        const fechas = abonos
+            .filter((a) => a.id_factura === idFactura && a.fecha)
+            .map((a) => new Date(a.fecha).getTime());
+        return fechas.length > 0 ? Math.max(...fechas) : null;
+    };
+
+    const coincideBusqueda = (fila) => {
+        if (!busqueda.trim()) return true;
+        return nombrePersona(fila.id_persona_cliente).toLowerCase().includes(busqueda.toLowerCase());
+    };
+
+    const porCobrar = items.filter((f) => !estaPagada(f) && coincideBusqueda(f));
+
+    const limiteVisible = Date.now() - DIAS_PAGADAS_VISIBLES * MS_POR_DIA;
+    const pagadasBusqueda = items.filter((f) => estaPagada(f) && coincideBusqueda(f));
+    const pagadasVisibles = pagadasBusqueda
+        .filter((f) => incluirAntiguas || (fechaPago(f.id) ?? Date.now()) >= limiteVisible)
+        .sort((a, b) => (fechaPago(b.id) || 0) - (fechaPago(a.id) || 0));
+    const pagadasOcultas = pagadasBusqueda.length - pagadasVisibles.length;
+
     const columnas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_persona_cliente', titulo: 'Cliente', render: (fila) => nombrePersona(fila.id_persona_cliente) },
@@ -83,21 +121,32 @@ function FacturaPage() {
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
 
-    const columnasCanceladas = [
+    const columnasPagadas = [
+        { campo: 'id', titulo: 'ID' },
+        { campo: 'id_persona_cliente', titulo: 'Cliente', render: (fila) => nombrePersona(fila.id_persona_cliente) },
+        { campo: 'fecha', titulo: 'Fecha' },
+        { campo: 'total_pagar', titulo: 'Total', render: (fila) => formatMoneda(fila.total_pagar) },
+        {
+            campo: 'pagada_el',
+            titulo: 'Pagada el',
+            render: (fila) => {
+                const t = fechaPago(fila.id);
+                return t ? new Date(t).toLocaleDateString('es-CO') : '—';
+            }
+        },
+        { campo: 'descripcion', titulo: 'Descripción' }
+    ];
+
+    const columnasAnuladas = [
         ...columnas,
         {
             campo: 'dias_restantes',
             titulo: 'Se elimina en',
             render: (fila) => fila.tiene_abonos
-                ? 'No se elimina (tiene abonos)'
+                ? 'Se conserva (tiene abonos)'
                 : `${fila.dias_restantes} día(s)`
         }
     ];
-
-    const itemsFiltrados = items.filter((fila) => {
-        if (!busqueda.trim()) return true;
-        return nombrePersona(fila.id_persona_cliente).toLowerCase().includes(busqueda.toLowerCase());
-    });
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -131,14 +180,43 @@ function FacturaPage() {
 
     const handleCancelarEdicion = () => { setFormData(formVacio); setEditandoId(null); };
 
-    const handleCancelarFactura = async (fila) => {
-        if (!window.confirm('¿Marcar esta factura como cancelada?')) return;
+    // "Cancelar" una factura = pagarla: se registra un abono por lo que falta
+    const handleCancelarSaldo = async (fila) => {
+        const pendiente = saldoPendiente(fila);
+        if (pendiente <= 0) {
+            alert('Esta factura no tiene un saldo por cobrar.');
+            return;
+        }
+        if (!window.confirm(`¿Registrar el pago de ${formatMoneda(pendiente)} y marcar la factura #${fila.id} como cancelada (pagada)?`)) return;
+
+        if (procesandoRef.current) return;
+        procesandoRef.current = true;
+        try {
+            await createAbono({
+                id_persona_cliente: fila.id_persona_cliente,
+                id_factura: fila.id,
+                fecha: ahoraLocal(),
+                valor: pendiente,
+                descripcion: 'Pago del saldo restante'
+            });
+            cargar();
+        } catch (err) {
+            console.error(err);
+            alert('Error al registrar el pago.');
+        } finally {
+            procesandoRef.current = false;
+        }
+    };
+
+    // Anular = dejar sin efecto una factura hecha por error
+    const handleAnular = async (fila) => {
+        if (!window.confirm('¿Anular esta factura? Úsalo solo para facturas hechas por error. Si el cliente ya pagó, no la anules: usa "Cancelar saldo".')) return;
         try {
             await desactivarFactura(fila.id);
             cargar();
         } catch (err) {
             console.error(err);
-            alert('Error al cancelar la factura.');
+            alert('Error al anular la factura.');
         }
     };
 
@@ -153,7 +231,7 @@ function FacturaPage() {
     };
 
     const cerrarVisor = () => {
-        if (visor) URL.revokeObjectURL(visor.url); // libera la memoria del PDF temporal
+        if (visor) URL.revokeObjectURL(visor.url);
         setVisor(null);
     };
 
@@ -217,36 +295,73 @@ function FacturaPage() {
                 style={{ marginBottom: '16px', maxWidth: '300px', display: 'block' }}
             />
 
-            <TablaGenerica
-                columnas={columnas}
-                datos={itemsFiltrados}
-                acciones={[
-                    { etiqueta: 'Ver', onClick: handleVerPDF },
-                    { etiqueta: 'Editar', onClick: handleEditar },
-                    { etiqueta: 'Cancelar', onClick: handleCancelarFactura, tipo: 'peligro' }
-                ]}
-            />
+            <h3 style={{ margin: '8px 0 10px 0' }}>Por cobrar ({porCobrar.length})</h3>
+            {porCobrar.length === 0 ? (
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas por cobrar.</p>
+            ) : (
+                <TablaGenerica
+                    columnas={columnas}
+                    datos={porCobrar}
+                    acciones={[
+                        { etiqueta: 'Ver', onClick: handleVerPDF },
+                        { etiqueta: 'Editar', onClick: handleEditar },
+                        { etiqueta: 'Cancelar saldo', onClick: handleCancelarSaldo },
+                        { etiqueta: 'Anular', onClick: handleAnular, tipo: 'peligro' }
+                    ]}
+                />
+            )}
 
-            <button
-                type="button"
-                onClick={() => setMostrarCanceladas((prev) => !prev)}
-                style={{ marginTop: '20px', background: 'transparent', color: 'var(--color-primary-dark)', border: '1px solid var(--color-primary)' }}
-            >
-                {mostrarCanceladas ? '▾' : '▸'} Facturas canceladas ({canceladas.length})
+            {/* ---------- Canceladas = pagadas por completo ---------- */}
+            <button type="button" onClick={() => setMostrarPagadas((prev) => !prev)} style={estiloToggle}>
+                {mostrarPagadas ? '▾' : '▸'} Facturas canceladas (pagadas) ({pagadasVisibles.length})
             </button>
 
-            {mostrarCanceladas && (
+            {mostrarPagadas && (
                 <div style={{ marginTop: '12px' }}>
-                    {canceladas.length === 0 ? (
-                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas canceladas.</p>
+                    <label style={{ display: 'block', marginBottom: '10px' }}>
+                        <input
+                            type="checkbox"
+                            checked={incluirAntiguas}
+                            onChange={(e) => setIncluirAntiguas(e.target.checked)}
+                            style={{ width: 'auto', marginRight: '6px' }}
+                        />
+                        Incluir las pagadas hace más de {DIAS_PAGADAS_VISIBLES} días
+                        {!incluirAntiguas && pagadasOcultas > 0 && ` (${pagadasOcultas} oculta(s))`}
+                    </label>
+
+                    {pagadasVisibles.length === 0 ? (
+                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas pagadas para mostrar.</p>
+                    ) : (
+                        <TablaGenerica
+                            columnas={columnasPagadas}
+                            datos={pagadasVisibles}
+                            acciones={[
+                                { etiqueta: 'Ver', onClick: handleVerPDF },
+                                { etiqueta: 'Anular', onClick: handleAnular, tipo: 'peligro' }
+                            ]}
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* ---------- Anuladas = hechas por error ---------- */}
+            <br />
+            <button type="button" onClick={() => setMostrarAnuladas((prev) => !prev)} style={{ ...estiloToggle, marginTop: '10px' }}>
+                {mostrarAnuladas ? '▾' : '▸'} Facturas anuladas ({anuladas.length})
+            </button>
+
+            {mostrarAnuladas && (
+                <div style={{ marginTop: '12px' }}>
+                    {anuladas.length === 0 ? (
+                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay facturas anuladas.</p>
                     ) : (
                         <>
                             <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px', marginTop: 0 }}>
-                                Las facturas canceladas sin abonos se eliminan automáticamente al cumplirse el plazo de la columna "Se elimina en". Si reactivas una, el plazo se descarta.
+                                Las facturas anuladas sin abonos se eliminan automáticamente al cumplirse el plazo de la columna "Se elimina en". Las que tienen abonos se conservan para revisarlas. Si reactivas una, el plazo se descarta.
                             </p>
                             <TablaGenerica
-                                columnas={columnasCanceladas}
-                                datos={canceladas}
+                                columnas={columnasAnuladas}
+                                datos={anuladas}
                                 acciones={[
                                     { etiqueta: 'Ver', onClick: handleVerPDF },
                                     { etiqueta: 'Reactivar', onClick: handleReactivar }
