@@ -11,6 +11,7 @@ import { getPresentaciones } from '../services/presentacionService';
 import { formatMoneda } from '../utils/format';
 import { generarFacturaPDF } from '../utils/facturaPdf';
 import TablaGenerica from '../components/TablaGenerica';
+import VisorPDF from '../components/VisorPDF';
 
 const formVacio = { id_persona_cliente: '', fecha: '', total_pagar: '', descripcion: '', id_estado: 1 };
 
@@ -27,6 +28,7 @@ function FacturaPage() {
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
     const [busqueda, setBusqueda] = useState('');
+    const [visor, setVisor] = useState(null);
 
     const cargar = async () => {
         setCargando(true);
@@ -140,6 +142,11 @@ function FacturaPage() {
         }
     };
 
+    const cerrarVisor = () => {
+    if (visor) URL.revokeObjectURL(visor.url); // libera la memoria del PDF temporal
+    setVisor(null);
+    };
+
     const handleDescargarPDF = async (fila) => {
         try {
             const detalles = await getProductosXFacturaByFactura(fila.id);
@@ -156,12 +163,13 @@ function FacturaPage() {
                 };
             });
 
-            generarFacturaPDF({
+            const { url, nombreArchivo } = generarFacturaPDF({
                 factura: fila,
                 clienteNombre: nombrePersona(fila.id_persona_cliente),
                 lineas,
                 totalAbonado: totalAbonado(fila.id)
             });
+            setVisor({ url, nombreArchivo, titulo: `Factura #${fila.id}` });
         } catch (err) {
             console.error(err);
             alert('Error al generar el PDF de la factura.');
@@ -202,7 +210,7 @@ function FacturaPage() {
                 columnas={columnas}
                 datos={itemsFiltrados}
                 acciones={[
-                    { etiqueta: 'PDF', onClick: handleDescargarPDF },
+                    { etiqueta: 'Ver', onClick: handleDescargarPDF },
                     { etiqueta: 'Editar', onClick: handleEditar },
                     { etiqueta: 'Cancelar', onClick: handleCancelarFactura, tipo: 'peligro' }
                 ]}
@@ -225,12 +233,20 @@ function FacturaPage() {
                             columnas={columnas}
                             datos={canceladas}
                             acciones={[
-                                { etiqueta: 'PDF', onClick: handleDescargarPDF },
+                                { etiqueta: 'Ver', onClick: handleDescargarPDF },
                                 { etiqueta: 'Reactivar', onClick: handleReactivar }
                             ]}
                         />
                     )}
                 </div>
+            )}
+            {visor && (
+                <VisorPDF
+                    url={visor.url}
+                    nombreArchivo={visor.nombreArchivo}
+                    titulo={visor.titulo}
+                    onCerrar={cerrarVisor}
+                />
             )}
         </div>
     );

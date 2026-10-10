@@ -16,6 +16,7 @@ const ANCHO_MM = 80; // Cambia a 58 si tu impresora térmica es de rollo angosto
 const MARGEN_MM = 4;
 const ANCHO_UTIL = ANCHO_MM - MARGEN_MM * 2;
 
+// Devuelve { url, nombreArchivo }. Ya no descarga nada: quien la llame decide qué hacer con el PDF.
 export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado = 0 }) {
     const alturaEncabezado = 55;
     const alturaPorLinea = 9;
@@ -63,7 +64,7 @@ export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado
     doc.line(MARGEN_MM, y, ANCHO_MM - MARGEN_MM, y);
     y += 4;
 
-    // --- Productos (formato de dos renglones por línea, ideal para papel angosto) ---
+    // --- Productos (dos renglones por línea, ideal para papel angosto) ---
     if (lineas.length === 0) {
         doc.setTextColor(150, 40, 40);
         doc.text('Esta factura no tiene productos registrados.', MARGEN_MM, y, { maxWidth: ANCHO_UTIL });
@@ -102,5 +103,7 @@ export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado
     doc.setFontSize(7);
     doc.text('¡Gracias por su compra!', centro, y, { align: 'center' });
 
-    doc.save(`factura_${factura.id}.pdf`);
+    const nombreArchivo = `factura_${factura.id}.pdf`;
+    const url = URL.createObjectURL(doc.output('blob'));
+    return { url, nombreArchivo };
 }

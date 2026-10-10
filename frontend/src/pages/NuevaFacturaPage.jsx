@@ -7,6 +7,8 @@ import { getRoles } from '../services/rolService';
 import { createFactura } from '../services/facturaService';
 import { createProductoXFactura } from '../services/productosXFacturaService';
 import { formatMoneda } from '../utils/format';
+import VisorPDF from '../components/VisorPDF';
+import { generarFacturaPDF } from '../utils/facturaPdf';
 
 // Fecha y hora actuales en el formato que entiende <input type="datetime-local">
 const ahoraLocal = () => {
@@ -34,6 +36,13 @@ function NuevaFacturaPage() {
     const enviandoRef = useRef(false);
     const contadorRef = useRef(0);
     const enfocarUidRef = useRef(null);
+
+    const [visor, setVisor] = useState(null);
+
+    const cerrarVisor = () => {
+        if (visor) URL.revokeObjectURL(visor.url);
+        setVisor(null);
+    };
 
     useEffect(() => {
         const cargar = async () => {
@@ -114,7 +123,7 @@ function NuevaFacturaPage() {
             return;
         }
 
-        enviandoRef.current = true; // candado inmediato contra doble clic
+        enviandoRef.current = true;
         setGuardando(true);
         try {
             const factura = await createFactura({
@@ -136,7 +145,30 @@ function NuevaFacturaPage() {
                 });
             }
 
-            alert(`Factura #${factura.id} creada correctamente. Total: ${formatMoneda(totalFactura)}`);
+            // La factura ya quedó guardada. Ahora armamos el PDF y lo mostramos de inmediato.
+            // Va en su propio try/catch: si el PDF fallara, no debe parecer que la factura no se guardó.
+            try {
+                const cliente = clientes.find((c) => c.id === Number(idPersonaCliente));
+                const lineasPdf = lineas.map((l) => {
+                    const presentacion = presentaciones.find((p) => p.id === Number(l.id_presentacion));
+                    return {
+                        cantidad: l.peso_total_kg,
+                        descripcion: `${nombreProducto(l.id_producto)}${presentacion ? ` (${presentacion.nombre})` : ''}`,
+                        vrUnitario: l.precio_por_kg,
+                        vrTotal: calcularSubtotal(l)
+                    };
+                });
+                const { url, nombreArchivo } = generarFacturaPDF({
+                    factura,
+                    clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : '',
+                    lineas: lineasPdf,
+                    totalAbonado: 0
+                });
+                setVisor({ url, nombreArchivo, titulo: `Factura #${factura.id} creada` });
+            } catch (errPdf) {
+                console.error(errPdf);
+                alert(`La factura #${factura.id} se guardó, pero no se pudo mostrar el PDF. La encuentras en "Facturas".`);
+            }
 
             setIdPersonaCliente('');
             setFecha(ahoraLocal());
@@ -294,6 +326,14 @@ function NuevaFacturaPage() {
                     </button>
                 </aside>
             </div>
+            {visor && (
+                <VisorPDF
+                    url={visor.url}
+                    nombreArchivo={visor.nombreArchivo}
+                    titulo={visor.titulo}
+                    onCerrar={cerrarVisor}
+                />
+            )}
         </div>
     );
 }
