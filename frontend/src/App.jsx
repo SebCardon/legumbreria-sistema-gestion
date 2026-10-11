@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './App.css';
 import { useAuth } from './context/AuthContext';
-import LoginPage from './pages/LoginPage'
+import LoginPage from './pages/LoginPage';
 import Sidebar from './components/Sidebar';
 import PersonasPage from './pages/PersonasPage';
 import ProductosPage from './pages/ProductosPage';
@@ -11,23 +11,21 @@ import PresentacionPage from './pages/PresentacionPage';
 import TipoDocumentoPage from './pages/TipoDocumentoPage';
 import RolPage from './pages/RolPage';
 import EstadoPage from './pages/EstadoPage';
-import TransportePage from './pages/TransportePage';
 import CompraPage from './pages/CompraPage';
 import FacturaPage from './pages/FacturaPage';
 import ProductosXCompraPage from './pages/ProductosXCompraPage';
 import ProductosXFacturaPage from './pages/ProductosXFacturaPage';
 import NuevaFacturaPage from './pages/NuevaFacturaPage';
-import NuevaCompraPage from './pages/NuevaCompraPage'
+import NuevaCompraPage from './pages/NuevaCompraPage';
 import NuevoAbonoPage from './pages/NuevoAbonoPage';
 import ReportesPage from './pages/ReportesPage';
 
 const PAGINAS = {
     nuevaFactura: NuevaFacturaPage,
     nuevaCompra: NuevaCompraPage,
-    nuevoAbono: NuevoAbonoPage,
     facturas: FacturaPage,
     compras: CompraPage,
-    transporte: TransportePage,
+    nuevoAbono: NuevoAbonoPage,
     reportes: ReportesPage,
     productosXCompra: ProductosXCompraPage,
     productosXFactura: ProductosXFacturaPage,

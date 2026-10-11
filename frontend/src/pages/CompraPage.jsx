@@ -3,31 +3,28 @@ import {
     getCompras, getComprasCanceladas, createCompra, updateCompra, desactivarCompra, reactivarCompra
 } from '../services/compraService';
 import { getProveedores } from '../services/proveedorService';
-import { getTransportes } from '../services/transporteService';
 import { formatMoneda } from '../utils/format';
 import TablaGenerica from '../components/TablaGenerica';
 
-const formVacio = { id_proveedor: '', id_transporte: '', fecha: '', total_compra: '', descripcion: '' };
+const formVacio = { id_proveedor: '', fecha: '', total_compra: '', descripcion: '' };
 
 function CompraPage() {
     const [items, setItems] = useState([]);
-    const [canceladas, setCanceladas] = useState([]);
-    const [mostrarCanceladas, setMostrarCanceladas] = useState(false);
+    const [anuladas, setAnuladas] = useState([]);
+    const [mostrarAnuladas, setMostrarAnuladas] = useState(false);
     const [proveedores, setProveedores] = useState([]);
-    const [transportes, setTransportes] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [formData, setFormData] = useState(formVacio);
     const [editandoId, setEditandoId] = useState(null);
 
     const cargar = async () => {
         setCargando(true);
-        const [dataItems, dataCanceladas, dataProveedores, dataTransportes] = await Promise.all([
-            getCompras(), getComprasCanceladas(), getProveedores(), getTransportes()
+        const [dataItems, dataAnuladas, dataProveedores] = await Promise.all([
+            getCompras(), getComprasCanceladas(), getProveedores()
         ]);
         setItems(dataItems);
-        setCanceladas(dataCanceladas);
+        setAnuladas(dataAnuladas);
         setProveedores(dataProveedores);
-        setTransportes(dataTransportes);
         setCargando(false);
     };
 
@@ -38,21 +35,15 @@ function CompraPage() {
         return p ? p.nombre : `ID ${id}`;
     };
 
-    const referenciaTransporte = (id) => {
-        const t = transportes.find((tr) => tr.id === id);
-        return t ? `Placa ${t.placa_vehiculo}` : `ID ${id}`;
-    };
-
     const columnas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_proveedor', titulo: 'Proveedor', render: (fila) => nombreProveedor(fila.id_proveedor) },
-        { campo: 'id_transporte', titulo: 'Transporte', render: (fila) => referenciaTransporte(fila.id_transporte) },
         { campo: 'fecha', titulo: 'Fecha' },
         { campo: 'total_compra', titulo: 'Total', render: (fila) => formatMoneda(fila.total_compra) },
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
 
-    const columnasCanceladas = [
+    const columnasAnuladas = [
         ...columnas,
         { campo: 'dias_restantes', titulo: 'Se elimina en', render: (fila) => `${fila.dias_restantes} día(s)` }
     ];
@@ -78,23 +69,24 @@ function CompraPage() {
 
     const handleEditar = (fila) => {
         setFormData({
-            id_proveedor: fila.id_proveedor, id_transporte: fila.id_transporte,
+            id_proveedor: fila.id_proveedor,
             fecha: fila.fecha ? fila.fecha.slice(0, 16) : '',
-            total_compra: fila.total_compra, descripcion: fila.descripcion || ''
+            total_compra: fila.total_compra,
+            descripcion: fila.descripcion || ''
         });
         setEditandoId(fila.id);
     };
 
     const handleCancelarEdicion = () => { setFormData(formVacio); setEditandoId(null); };
 
-    const handleCancelarCompra = async (fila) => {
-        if (!window.confirm('¿Marcar esta compra como cancelada?')) return;
+    const handleAnular = async (fila) => {
+        if (!window.confirm('¿Anular esta compra?')) return;
         try {
             await desactivarCompra(fila.id);
             cargar();
         } catch (err) {
             console.error(err);
-            alert('Error al cancelar la compra.');
+            alert('Error al anular la compra.');
         }
     };
 
@@ -123,12 +115,6 @@ function CompraPage() {
                         <option key={p.id} value={p.id}>{p.nombre}</option>
                     ))}
                 </select>
-                <select name="id_transporte" value={formData.id_transporte} onChange={handleChange} required>
-                    <option value="">-- Transporte --</option>
-                    {transportes.map((t) => (
-                        <option key={t.id} value={t.id}>Placa {t.placa_vehiculo}</option>
-                    ))}
-                </select>
                 <input name="fecha" type="datetime-local" value={formData.fecha} onChange={handleChange} required />
                 <input name="total_compra" type="number" step="0.01" placeholder="Total" value={formData.total_compra} onChange={handleChange} required />
                 <input name="descripcion" placeholder="Descripción" value={formData.descripcion} onChange={handleChange} />
@@ -141,30 +127,30 @@ function CompraPage() {
                 datos={items}
                 acciones={[
                     { etiqueta: 'Editar', onClick: handleEditar },
-                    { etiqueta: 'Cancelar', onClick: handleCancelarCompra, tipo: 'peligro' }
+                    { etiqueta: 'Anular', onClick: handleAnular, tipo: 'peligro' }
                 ]}
             />
 
             <button
                 type="button"
-                onClick={() => setMostrarCanceladas((prev) => !prev)}
+                onClick={() => setMostrarAnuladas((prev) => !prev)}
                 style={{ marginTop: '20px', background: 'transparent', color: 'var(--color-primary-dark)', border: '1px solid var(--color-primary)' }}
             >
-                {mostrarCanceladas ? '▾' : '▸'} Compras canceladas ({canceladas.length})
+                {mostrarAnuladas ? '▾' : '▸'} Compras anuladas ({anuladas.length})
             </button>
 
-            {mostrarCanceladas && (
+            {mostrarAnuladas && (
                 <div style={{ marginTop: '12px' }}>
-                    {canceladas.length === 0 ? (
-                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay compras canceladas.</p>
+                    {anuladas.length === 0 ? (
+                        <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px' }}>No hay compras anuladas.</p>
                     ) : (
                         <>
                             <p style={{ color: 'var(--color-ink-soft)', fontSize: '13px', marginTop: 0 }}>
-                                Las compras canceladas se eliminan automáticamente al cumplirse el plazo de la columna "Se elimina en". Si reactivas una, el plazo se descarta.
+                                Las compras anuladas se eliminan automáticamente al cumplirse el plazo de la columna "Se elimina en". Si reactivas una, el plazo se descarta.
                             </p>
                             <TablaGenerica
-                                columnas={columnasCanceladas}
-                                datos={canceladas}
+                                columnas={columnasAnuladas}
+                                datos={anuladas}
                                 acciones={[{ etiqueta: 'Reactivar', onClick: handleReactivar }]}
                             />
                         </>

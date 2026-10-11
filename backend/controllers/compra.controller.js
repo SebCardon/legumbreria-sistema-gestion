@@ -43,11 +43,11 @@ const getCompraById = async (req, res) => {
 
 const createCompra = async (req, res) => {
     try {
-        const { id_proveedor, id_transporte, fecha, total_compra, descripcion } = req.body;
+        const { id_proveedor, fecha, total_compra, descripcion } = req.body;
         const [result] = await pool.query(
-            `INSERT INTO compra (id_proveedor, id_transporte, fecha, total_compra, descripcion)
-             VALUES (?, ?, ?, ?, ?)`,
-            [id_proveedor, id_transporte, fecha, total_compra, descripcion]
+            `INSERT INTO compra (id_proveedor, fecha, total_compra, descripcion)
+             VALUES (?, ?, ?, ?)`,
+            [id_proveedor, fecha, total_compra, descripcion]
         );
         res.status(201).json({ id: result.insertId, ...req.body });
     } catch (error) {
@@ -58,11 +58,11 @@ const createCompra = async (req, res) => {
 
 const updateCompra = async (req, res) => {
     try {
-        const { id_proveedor, id_transporte, fecha, total_compra, descripcion } = req.body;
+        const { id_proveedor, fecha, total_compra, descripcion } = req.body;
         const [result] = await pool.query(
-            `UPDATE compra SET id_proveedor=?, id_transporte=?, fecha=?, total_compra=?, descripcion=?
+            `UPDATE compra SET id_proveedor=?, fecha=?, total_compra=?, descripcion=?
              WHERE id=?`,
-            [id_proveedor, id_transporte, fecha, total_compra, descripcion, req.params.id]
+            [id_proveedor, fecha, total_compra, descripcion, req.params.id]
         );
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Compra no encontrada' });
         res.json({ mensaje: 'Compra actualizada correctamente' });
@@ -79,7 +79,7 @@ const desactivarCompra = async (req, res) => {
             [ID_ESTADO_INACTIVO, req.params.id]
         );
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Compra no encontrada' });
-        res.json({ mensaje: 'Compra cancelada correctamente' });
+        res.json({ mensaje: 'Compra anulada correctamente' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
