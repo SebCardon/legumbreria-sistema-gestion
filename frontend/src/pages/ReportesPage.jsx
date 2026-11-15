@@ -4,7 +4,7 @@ import { getFacturas } from '../services/facturaService';
 import { getProductosXCompra } from '../services/productosXCompraService';
 import { getProductosXFactura } from '../services/productosXFacturaService';
 import { getProductos } from '../services/productosService';
-import { formatMoneda, formatNumero } from '../utils/format';
+import { formatMoneda, formatNumero, parseFechaLocal } from '../utils/format';
 import { generarReportePDF } from '../utils/reportePdf';
 
 const OPCIONES_PERIODO = [
@@ -62,14 +62,14 @@ function ReportesPage() {
     const compraDentroDelRango = (idCompra) => {
         const compra = compras.find((c) => c.id === idCompra);
         if (!compra || !compra.fecha) return false;
-        const fecha = new Date(compra.fecha);
+        const fecha = parseFechaLocal(compra.fecha);
         return fecha >= inicio && fecha <= fin;
     };
 
     const facturaDentroDelRango = (idFactura) => {
         const factura = facturas.find((f) => f.id === idFactura);
         if (!factura || !factura.fecha) return false;
-        const fecha = new Date(factura.fecha);
+        const fecha = parseFechaLocal(factura.fecha);
         return fecha >= inicio && fecha <= fin;
     };
 

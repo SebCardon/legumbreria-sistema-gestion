@@ -3,7 +3,7 @@ import {
     getCompras, getComprasCanceladas, createCompra, updateCompra, desactivarCompra, reactivarCompra
 } from '../services/compraService';
 import { getProveedores } from '../services/proveedorService';
-import { formatMoneda } from '../utils/format';
+import { formatMoneda, formatFecha, aInputLocal } from '../utils/format';
 import TablaGenerica from '../components/TablaGenerica';
 
 const formVacio = { id_proveedor: '', fecha: '', total_compra: '', descripcion: '' };
@@ -38,7 +38,7 @@ function CompraPage() {
     const columnas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_proveedor', titulo: 'Proveedor', render: (fila) => nombreProveedor(fila.id_proveedor) },
-        { campo: 'fecha', titulo: 'Fecha' },
+        { campo: 'fecha', titulo: 'Fecha', render: (fila) => formatFecha(fila.fecha) },
         { campo: 'total_compra', titulo: 'Total', render: (fila) => formatMoneda(fila.total_compra) },
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
@@ -70,7 +70,7 @@ function CompraPage() {
     const handleEditar = (fila) => {
         setFormData({
             id_proveedor: fila.id_proveedor,
-            fecha: fila.fecha ? fila.fecha.slice(0, 16) : '',
+            fecha: aInputLocal(fila.fecha),
             total_compra: fila.total_compra,
             descripcion: fila.descripcion || ''
         });

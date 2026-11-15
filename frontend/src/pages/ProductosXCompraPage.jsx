@@ -4,7 +4,7 @@ import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
 import { getCompras } from '../services/compraService';
 import { getProveedores } from '../services/proveedorService';
-import { formatMoneda } from '../utils/format';
+import { formatMoneda, parseFechaLocal } from '../utils/format';
 import TablaGenerica from '../components/TablaGenerica';
 
 function ProductosXCompraPage() {
@@ -110,7 +110,7 @@ function ProductosXCompraPage() {
 
     if (cargandoDatos) return <p>Cargando datos...</p>;
 
-    const comprasOrdenadas = [...compras].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const comprasOrdenadas = [...compras].sort((a, b) => parseFechaLocal(b.fecha) - parseFechaLocal(a.fecha));
 
     return (
         <div>

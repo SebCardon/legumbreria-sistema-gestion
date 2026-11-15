@@ -9,7 +9,9 @@ import { getAbonos, createAbono } from '../services/abonoService';
 import { getProductosXFacturaByFactura } from '../services/productosXFacturaService';
 import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
-import { formatMoneda, ahoraLocal } from '../utils/format';
+import {
+    formatMoneda, ahoraLocal, formatFecha, formatSoloFecha, parseFechaLocal, aInputLocal
+} from '../utils/format';
 import { generarFacturaPDF } from '../utils/facturaPdf';
 import TablaGenerica from '../components/TablaGenerica';
 import VisorPDF from '../components/VisorPDF';
@@ -90,11 +92,14 @@ function FacturaPage() {
     // así que si una factura pagada cambia de total, vuelve sola a "Por cobrar".
     const estaPagada = (fila) => Number(fila.total_pagar) > 0 && saldoPendiente(fila) < 0.005;
 
+    // Fecha del último abono de la factura (un Date) o null
     const fechaPago = (idFactura) => {
         const fechas = abonos
-            .filter((a) => a.id_factura === idFactura && a.fecha)
-            .map((a) => new Date(a.fecha).getTime());
-        return fechas.length > 0 ? Math.max(...fechas) : null;
+            .filter((a) => a.id_factura === idFactura)
+            .map((a) => parseFechaLocal(a.fecha))
+            .filter(Boolean);
+        if (fechas.length === 0) return null;
+        return new Date(Math.max(...fechas.map((d) => d.getTime())));
     };
 
     const coincideBusqueda = (fila) => {
@@ -107,14 +112,14 @@ function FacturaPage() {
     const limiteVisible = Date.now() - DIAS_PAGADAS_VISIBLES * MS_POR_DIA;
     const pagadasBusqueda = items.filter((f) => estaPagada(f) && coincideBusqueda(f));
     const pagadasVisibles = pagadasBusqueda
-        .filter((f) => incluirAntiguas || (fechaPago(f.id) ?? Date.now()) >= limiteVisible)
-        .sort((a, b) => (fechaPago(b.id) || 0) - (fechaPago(a.id) || 0));
+        .filter((f) => incluirAntiguas || (fechaPago(f.id)?.getTime() ?? Date.now()) >= limiteVisible)
+        .sort((a, b) => (fechaPago(b.id)?.getTime() || 0) - (fechaPago(a.id)?.getTime() || 0));
     const pagadasOcultas = pagadasBusqueda.length - pagadasVisibles.length;
 
     const columnas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_persona_cliente', titulo: 'Cliente', render: (fila) => nombrePersona(fila.id_persona_cliente) },
-        { campo: 'fecha', titulo: 'Fecha' },
+        { campo: 'fecha', titulo: 'Fecha', render: (fila) => formatFecha(fila.fecha) },
         { campo: 'total_pagar', titulo: 'Total', render: (fila) => formatMoneda(fila.total_pagar) },
         { campo: 'abonado', titulo: 'Abonado', render: (fila) => formatMoneda(totalAbonado(fila.id)) },
         { campo: 'pendiente', titulo: 'Pendiente', render: (fila) => formatMoneda(saldoPendiente(fila)) },
@@ -124,16 +129,9 @@ function FacturaPage() {
     const columnasPagadas = [
         { campo: 'id', titulo: 'ID' },
         { campo: 'id_persona_cliente', titulo: 'Cliente', render: (fila) => nombrePersona(fila.id_persona_cliente) },
-        { campo: 'fecha', titulo: 'Fecha' },
+        { campo: 'fecha', titulo: 'Fecha', render: (fila) => formatFecha(fila.fecha) },
         { campo: 'total_pagar', titulo: 'Total', render: (fila) => formatMoneda(fila.total_pagar) },
-        {
-            campo: 'pagada_el',
-            titulo: 'Pagada el',
-            render: (fila) => {
-                const t = fechaPago(fila.id);
-                return t ? new Date(t).toLocaleDateString('es-CO') : '—';
-            }
-        },
+        { campo: 'pagada_el', titulo: 'Pagada el', render: (fila) => formatSoloFecha(fechaPago(fila.id)) || '—' },
         { campo: 'descripcion', titulo: 'Descripción' }
     ];
 
@@ -170,7 +168,7 @@ function FacturaPage() {
     const handleEditar = (fila) => {
         setFormData({
             id_persona_cliente: fila.id_persona_cliente,
-            fecha: fila.fecha ? fila.fecha.slice(0, 16) : '',
+            fecha: aInputLocal(fila.fecha),
             total_pagar: fila.total_pagar,
             descripcion: fila.descripcion || '',
             id_estado: fila.id_estado

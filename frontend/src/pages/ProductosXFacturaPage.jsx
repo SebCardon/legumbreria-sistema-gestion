@@ -4,7 +4,7 @@ import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
 import { getFacturas } from '../services/facturaService';
 import { getPersonas } from '../services/personasService';
-import { formatMoneda } from '../utils/format';
+import { formatMoneda, parseFechaLocal } from '../utils/format';
 import TablaGenerica from '../components/TablaGenerica';
 
 function ProductosXFacturaPage() {
@@ -111,7 +111,7 @@ function ProductosXFacturaPage() {
     if (cargandoDatos) return <p>Cargando datos...</p>;
 
     // Facturas más recientes primero, con nombre de cliente para que sea fácil ubicarla
-    const facturasOrdenadas = [...facturas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const facturasOrdenadas = [...facturas].sort((a, b) => parseFechaLocal(b.fecha) - parseFechaLocal(a.fecha));
 
     return (
         <div>

@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { formatNumero } from './format';
+import { formatNumero, formatFecha } from './format';
 
 const NEGOCIO = {
     nombre: 'Legumbres y Verduras Aristizábal',
@@ -57,7 +57,7 @@ export function generarFacturaPDF({ factura, clienteNombre, lineas, totalAbonado
 
     doc.setFont('courier', 'normal');
     doc.setFontSize(7);
-    const fechaTexto = factura.fecha ? new Date(factura.fecha).toLocaleDateString('es-CO') : '';
+    const fechaTexto = formatFecha(factura.fecha);
     doc.text(`Fecha: ${fechaTexto}`, MARGEN_MM, y); y += 3.5;
     doc.text(`Cliente: ${clienteNombre}`, MARGEN_MM, y, { maxWidth: ANCHO_UTIL }); y += 5;
 
