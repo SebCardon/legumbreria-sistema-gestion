@@ -9,3 +9,4 @@ export const createCompra = async (data) => (await axios.post(API_URL, data)).da
 export const updateCompra = async (id, data) => (await axios.put(`${API_URL}/${id}`, data)).data;
 export const desactivarCompra = async (id) => (await axios.patch(`${API_URL}/${id}/desactivar`)).data;
 export const reactivarCompra = async (id) => (await axios.patch(`${API_URL}/${id}/reactivar`)).data;
+export const createCompraCompleta = async (data) => (await axios.post(`${API_URL}/completa`, data)).data;

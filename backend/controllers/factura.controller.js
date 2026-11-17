@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { validarCabecera, prepararLineas, manejarError } = require('../utils/documentos');
 const { DIAS_RETENCION } = require('../config/retencion');
 
 const ID_ESTADO_ACTIVO = 1;
@@ -102,7 +103,68 @@ const reactivarFactura = async (req, res) => {
     }
 };
 
+// Factura completa en UNA transacción: cabecera + productos + (opcional) pago de contado.
+// O se guarda todo, o no se guarda nada.
+const createFacturaCompleta = async (req, res) => {
+    const { id_persona_cliente, fecha, descripcion, pago_completo, lineas } = req.body;
+
+    if (!(Number(id_persona_cliente) > 0)) {
+        return res.status(400).json({ error: 'Selecciona un cliente.' });
+    }
+    const errorCabecera = validarCabecera({ fecha, descripcion });
+    if (errorCabecera) return res.status(400).json({ error: errorCabecera });
+
+    const preparado = prepararLineas(lineas);
+    if (preparado.error) return res.status(400).json({ error: preparado.error });
+
+    const conexion = await pool.getConnection();
+    try {
+        await conexion.beginTransaction();
+
+        const [factura] = await conexion.query(
+            `INSERT INTO factura (id_persona_cliente, fecha, total_pagar, descripcion, id_estado)
+             VALUES (?, ?, ?, ?, ?)`,
+            [id_persona_cliente, fecha, preparado.total, descripcion || null, ID_ESTADO_ACTIVO]
+        );
+        const idFactura = factura.insertId;
+
+        for (const l of preparado.lineas) {
+            await conexion.query(
+                `INSERT INTO productos_x_factura (id_factura, id_producto, id_presentacion, peso_total_kg, precio_por_kg, subtotal)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [idFactura, l.id_producto, l.id_presentacion, l.peso, l.precio, l.subtotal]
+            );
+        }
+
+        let totalAbonado = 0;
+        if (pago_completo && preparado.total > 0) {
+            await conexion.query(
+                `INSERT INTO abono (id_persona_cliente, id_factura, fecha, valor, descripcion)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [id_persona_cliente, idFactura, fecha, preparado.total, 'Pago de contado']
+            );
+            totalAbonado = preparado.total;
+        }
+
+        await conexion.commit();
+
+        res.status(201).json({
+            id: idFactura,
+            id_persona_cliente: Number(id_persona_cliente),
+            fecha,
+            descripcion: descripcion || '',
+            total_pagar: preparado.total,
+            total_abonado: totalAbonado
+        });
+    } catch (error) {
+        await conexion.rollback().catch(() => {});
+        manejarError(res, error);
+    } finally {
+        conexion.release();
+    }
+};
+
 module.exports = {
     getFacturas, getFacturasCanceladas, getFacturaById,
-    createFactura, updateFactura, desactivarFactura, reactivarFactura
+    createFactura, createFacturaCompleta, updateFactura, desactivarFactura, reactivarFactura
 };

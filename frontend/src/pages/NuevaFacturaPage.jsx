@@ -4,10 +4,9 @@ import { getCategorias } from '../services/categoriaService';
 import { getPresentaciones } from '../services/presentacionService';
 import { getPersonas } from '../services/personasService';
 import { getRoles } from '../services/rolService';
-import { createFactura } from '../services/facturaService';
-import { createProductoXFactura } from '../services/productosXFacturaService';
-import { createAbono } from '../services/abonoService';
+import { createFacturaCompleta } from '../services/facturaService';
 import { formatMoneda, ahoraLocal } from '../utils/format';
+import { subtotalLinea, sumarDinero, redondear2 } from '../utils/calculos';
 import { generarFacturaPDF } from '../utils/facturaPdf';
 import VisorPDF from '../components/VisorPDF';
 
@@ -85,10 +84,9 @@ function NuevaFacturaPage() {
         setLineas((prev) => prev.filter((l) => l.uid !== uid));
     };
 
-    const calcularSubtotal = (linea) =>
-        (Number(linea.peso_total_kg) || 0) * (Number(linea.precio_por_kg) || 0);
+    const calcularSubtotal = (linea) => subtotalLinea(linea.peso_total_kg, linea.precio_por_kg);
 
-    const totalFactura = lineas.reduce((acc, l) => acc + calcularSubtotal(l), 0);
+    const totalFactura = sumarDinero(lineas.map(calcularSubtotal));
 
     const lineasPorProducto = lineas.reduce((mapa, l) => {
         mapa[l.id_producto] = (mapa[l.id_producto] || 0) + 1;
@@ -120,51 +118,29 @@ function NuevaFacturaPage() {
         enviandoRef.current = true; // candado inmediato contra doble clic
         setGuardando(true);
         try {
-            const factura = await createFactura({
+            // Un solo envío: el servidor guarda la factura, sus productos y el pago de contado
+            // dentro de una transacción. O queda todo guardado, o no queda nada.
+            const factura = await createFacturaCompleta({
                 id_persona_cliente: idPersonaCliente,
                 fecha,
-                total_pagar: totalFactura,
                 descripcion,
-                id_estado: 1
+                pago_completo: pagoCompleto,
+                lineas: lineas.map((l) => ({
+                    id_producto: l.id_producto,
+                    id_presentacion: l.id_presentacion,
+                    peso_total_kg: l.peso_total_kg,
+                    precio_por_kg: l.precio_por_kg
+                }))
             });
 
-            for (const linea of lineas) {
-                await createProductoXFactura({
-                    id_factura: factura.id,
-                    id_producto: linea.id_producto,
-                    id_presentacion: linea.id_presentacion,
-                    peso_total_kg: linea.peso_total_kg,
-                    precio_por_kg: linea.precio_por_kg,
-                    subtotal: calcularSubtotal(linea)
-                });
-            }
-
-            // Venta de contado: se registra el pago completo. Va aparte para que, si fallara,
-            // no parezca que la factura no se guardó.
-            let pagoRegistrado = false;
-            if (pagoCompleto && totalFactura > 0) {
-                try {
-                    await createAbono({
-                        id_persona_cliente: idPersonaCliente,
-                        id_factura: factura.id,
-                        fecha,
-                        valor: totalFactura,
-                        descripcion: 'Pago de contado'
-                    });
-                    pagoRegistrado = true;
-                } catch (errAbono) {
-                    console.error(errAbono);
-                    alert(`La factura #${factura.id} se guardó, pero no se pudo registrar el pago. Regístralo desde "Facturas" con "Cancelar saldo".`);
-                }
-            }
-
-            // Se muestra la factura de inmediato, también en su propio try/catch
+            // La factura ya quedó guardada. Se muestra el comprobante en su propio try/catch:
+            // si fallara el PDF, no debe parecer que la factura no se guardó.
             try {
                 const cliente = clientes.find((c) => c.id === Number(idPersonaCliente));
                 const lineasPdf = lineas.map((l) => {
                     const presentacion = presentaciones.find((p) => p.id === Number(l.id_presentacion));
                     return {
-                        cantidad: l.peso_total_kg,
+                        cantidad: redondear2(l.peso_total_kg).toFixed(2),
                         descripcion: `${nombreProducto(l.id_producto)}${presentacion ? ` (${presentacion.nombre})` : ''}`,
                         vrUnitario: l.precio_por_kg,
                         vrTotal: calcularSubtotal(l)
@@ -174,7 +150,7 @@ function NuevaFacturaPage() {
                     factura,
                     clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : '',
                     lineas: lineasPdf,
-                    totalAbonado: pagoRegistrado ? totalFactura : 0
+                    totalAbonado: factura.total_abonado
                 });
                 setVisor({ url, nombreArchivo, titulo: `Factura #${factura.id} creada` });
             } catch (errPdf) {
@@ -189,7 +165,7 @@ function NuevaFacturaPage() {
             setLineas([]);
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.error || 'Error al guardar la factura.');
+            alert(err.response?.data?.error || 'No se pudo guardar la factura. Revisa tu conexión e inténtalo de nuevo.');
         } finally {
             setGuardando(false);
             enviandoRef.current = false;

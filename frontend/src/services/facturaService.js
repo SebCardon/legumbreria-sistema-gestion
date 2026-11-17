@@ -9,3 +9,4 @@ export const updateFactura = async (id, data) => (await axios.put(`${API_URL}/${
 export const desactivarFactura = async (id) => (await axios.patch(`${API_URL}/${id}/desactivar`)).data;
 export const getFacturasCanceladas = async () => (await axios.get(`${API_URL}/canceladas`)).data;
 export const reactivarFactura = async (id) => (await axios.patch(`${API_URL}/${id}/reactivar`)).data;
+export const createFacturaCompleta = async (data) => (await axios.post(`${API_URL}/completa`, data)).data;

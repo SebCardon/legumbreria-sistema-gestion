@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { getProveedores } from '../services/proveedorService';
 import { getProductos } from '../services/productosService';
 import { getPresentaciones } from '../services/presentacionService';
-import { createCompra } from '../services/compraService';
-import { createProductoXCompra } from '../services/productosXCompraService';
+import { createCompraCompleta } from '../services/compraService';
 import { formatNumero } from '../utils/format';
+import { subtotalLinea, sumarDinero } from '../utils/calculos';
 
 const crearLineaVacia = () => ({
     id_producto: '', id_presentacion: '', peso_total_kg: '', precio_por_kg: ''
@@ -50,8 +50,8 @@ function NuevaCompraPage() {
         );
     };
 
-    const calcularSubtotal = (linea) => (Number(linea.peso_total_kg) || 0) * (Number(linea.precio_por_kg) || 0);
-    const totalCompra = lineas.reduce((acc, l) => acc + calcularSubtotal(l), 0);
+    const calcularSubtotal = (linea) => subtotalLinea(linea.peso_total_kg, linea.precio_por_kg);
+    const totalCompra = sumarDinero(lineas.map(calcularSubtotal));
 
     const agregarLinea = () => setLineas((prev) => [...prev, crearLineaVacia()]);
     const eliminarLinea = (index) => {
@@ -59,7 +59,7 @@ function NuevaCompraPage() {
         setLineas((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const handleGuardar = async () => {
+        const handleGuardar = async () => {
         if (enviandoRef.current) return;
 
         if (!idProveedor || !fecha) {
@@ -75,32 +75,27 @@ function NuevaCompraPage() {
         enviandoRef.current = true; // candado inmediato contra doble clic
         setGuardando(true);
         try {
-            const compra = await createCompra({
+            // Un solo envío: el servidor guarda la compra y sus productos dentro de una transacción.
+            const compra = await createCompraCompleta({
                 id_proveedor: idProveedor,
                 fecha,
-                total_compra: totalCompra,
-                descripcion
+                descripcion,
+                lineas: lineasValidas.map((l) => ({
+                    id_producto: l.id_producto,
+                    id_presentacion: l.id_presentacion,
+                    peso_total_kg: l.peso_total_kg,
+                    precio_por_kg: l.precio_por_kg
+                }))
             });
 
-            for (const linea of lineasValidas) {
-                await createProductoXCompra({
-                    id_compra: compra.id,
-                    id_producto: linea.id_producto,
-                    id_presentacion: linea.id_presentacion,
-                    peso_total_kg: linea.peso_total_kg,
-                    precio_por_kg: linea.precio_por_kg,
-                    subtotal: calcularSubtotal(linea)
-                });
-            }
-
-            alert(`Compra #${compra.id} registrada. Total: $${formatNumero(totalCompra)}`);
+            alert(`Compra #${compra.id} registrada. Total: $${formatNumero(compra.total_compra)}`);
             setIdProveedor('');
             setFecha('');
             setDescripcion('');
             setLineas([crearLineaVacia()]);
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.error || 'Error al guardar la compra.');
+            alert(err.response?.data?.error || 'No se pudo guardar la compra. Revisa tu conexión e inténtalo de nuevo.');
         } finally {
             setGuardando(false);
             enviandoRef.current = false;
