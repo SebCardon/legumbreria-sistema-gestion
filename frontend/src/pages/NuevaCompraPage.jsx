@@ -6,8 +6,12 @@ import { createCompraCompleta } from '../services/compraService';
 import { formatNumero } from '../utils/format';
 import { subtotalLinea, sumarDinero } from '../utils/calculos';
 
-const crearLineaVacia = () => ({
-    id_producto: '', id_presentacion: '', peso_total_kg: '', precio_por_kg: ''
+// Presentación que se preselecciona en cada producto: "Kilogramo" (o la primera de la lista)
+const idPresentacionPorDefecto = (lista) =>
+    (lista.find((p) => p.nombre.toLowerCase().includes('kilo')) || lista[0])?.id ?? '';
+
+const crearLineaVacia = (idPresentacion = '') => ({
+    id_producto: '', id_presentacion: idPresentacion, peso_total_kg: '', precio_por_kg: ''
 });
 
 function NuevaCompraPage() {
@@ -31,6 +35,8 @@ function NuevaCompraPage() {
             setProveedores(dataProveedores);
             setProductos(dataProductos);
             setPresentaciones(dataPresentaciones);
+            const idKilo = idPresentacionPorDefecto(dataPresentaciones);
+            setLineas((prev) => prev.map((l) => ({ ...l, id_presentacion: l.id_presentacion || idKilo })));
             setCargandoDatos(false);
         };
         cargarDatosIniciales();
@@ -53,7 +59,7 @@ function NuevaCompraPage() {
     const calcularSubtotal = (linea) => subtotalLinea(linea.peso_total_kg, linea.precio_por_kg);
     const totalCompra = sumarDinero(lineas.map(calcularSubtotal));
 
-    const agregarLinea = () => setLineas((prev) => [...prev, crearLineaVacia()]);
+    const agregarLinea = () => setLineas((prev) => [...prev, crearLineaVacia(idPresentacionPorDefecto(presentaciones))]);
     const eliminarLinea = (index) => {
         if (lineas.length === 1) return;
         setLineas((prev) => prev.filter((_, i) => i !== index));
@@ -92,7 +98,7 @@ function NuevaCompraPage() {
             setIdProveedor('');
             setFecha('');
             setDescripcion('');
-            setLineas([crearLineaVacia()]);
+            setLineas([crearLineaVacia(idPresentacionPorDefecto(presentaciones))]);
         } catch (err) {
             console.error(err);
             alert(err.response?.data?.error || 'No se pudo guardar la compra. Revisa tu conexión e inténtalo de nuevo.');

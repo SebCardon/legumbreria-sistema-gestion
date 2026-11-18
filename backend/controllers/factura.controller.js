@@ -1,5 +1,5 @@
 const pool = require('../db');
-const { validarCabecera, prepararLineas, manejarError } = require('../utils/documentos');
+const { validarCabecera, prepararLineas, calcularPagoInicial, manejarError } = require('../utils/documentos');
 const { DIAS_RETENCION } = require('../config/retencion');
 
 const ID_ESTADO_ACTIVO = 1;
@@ -103,10 +103,10 @@ const reactivarFactura = async (req, res) => {
     }
 };
 
-// Factura completa en UNA transacción: cabecera + productos + (opcional) pago de contado.
+// Factura completa en UNA transacción: cabecera + productos + (opcional) pago inicial.
 // O se guarda todo, o no se guarda nada.
 const createFacturaCompleta = async (req, res) => {
-    const { id_persona_cliente, fecha, descripcion, pago_completo, lineas } = req.body;
+    const { id_persona_cliente, fecha, descripcion, pago_completo, abono, lineas } = req.body;
 
     if (!(Number(id_persona_cliente) > 0)) {
         return res.status(400).json({ error: 'Selecciona un cliente.' });
@@ -116,6 +116,10 @@ const createFacturaCompleta = async (req, res) => {
 
     const preparado = prepararLineas(lineas);
     if (preparado.error) return res.status(400).json({ error: preparado.error });
+
+    // Pago recibido al crear la factura: todo (de contado) o un abono parcial
+    const pago = calcularPagoInicial(pago_completo, abono, preparado.total);
+    if (pago.error) return res.status(400).json({ error: pago.error });
 
     const conexion = await pool.getConnection();
     try {
@@ -136,14 +140,12 @@ const createFacturaCompleta = async (req, res) => {
             );
         }
 
-        let totalAbonado = 0;
-        if (pago_completo && preparado.total > 0) {
+        if (pago.valor > 0) {
             await conexion.query(
                 `INSERT INTO abono (id_persona_cliente, id_factura, fecha, valor, descripcion)
                  VALUES (?, ?, ?, ?, ?)`,
-                [id_persona_cliente, idFactura, fecha, preparado.total, 'Pago de contado']
+                [id_persona_cliente, idFactura, fecha, pago.valor, pago.valor === preparado.total ? 'Pago de contado' : 'Abono inicial']
             );
-            totalAbonado = preparado.total;
         }
 
         await conexion.commit();
@@ -154,7 +156,7 @@ const createFacturaCompleta = async (req, res) => {
             fecha,
             descripcion: descripcion || '',
             total_pagar: preparado.total,
-            total_abonado: totalAbonado
+            total_abonado: pago.valor
         });
     } catch (error) {
         await conexion.rollback().catch(() => {});

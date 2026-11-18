@@ -11,13 +11,12 @@ const columnas = [
     { campo: 'apellido', titulo: 'Apellido' },
     { campo: 'num_documento', titulo: 'Documento', render: (fila) => fila.num_documento || '—' },
     { campo: 'telefono', titulo: 'Teléfono' },
-    { campo: 'correo', titulo: 'Correo' },
     { campo: 'saldo_a_favor', titulo: 'Saldo a favor', render: (fila) => formatMoneda(fila.saldo_a_favor || 0) }
 ];
 
 const formVacio = {
     nombre: '', apellido: '', num_documento: '', id_tipo_documento: '',
-    telefono: '', correo: '', id_estado: 1, id_rol: ''
+    telefono: '', id_estado: 1, id_rol: ''
 };
 
 function PersonasPage() {
@@ -75,7 +74,6 @@ function PersonasPage() {
             num_documento: fila.num_documento,
             id_tipo_documento: fila.id_tipo_documento,
             telefono: fila.telefono || '',
-            correo: fila.correo || '',
             id_estado: fila.id_estado,
             id_rol: fila.id_rol
         });
@@ -99,6 +97,9 @@ function PersonasPage() {
     return (
         <div>
             <h2>Personas</h2>
+            <p style={{ color: 'var(--color-ink-soft)', marginTop: '-12px', marginBottom: '16px', fontSize: '13px' }}>
+                El rol «Cliente» es el que permite elegir a la persona al facturar o registrar abonos. Los demás roles solo sirven para clasificar.
+            </p>            
             <form onSubmit={handleSubmit}>
                 <input name="nombre" placeholder="Nombre" value={formData.nombre} onChange={handleChange} required />
                 <input name="apellido" placeholder="Apellido" value={formData.apellido} onChange={handleChange} required />
@@ -112,7 +113,6 @@ function PersonasPage() {
                 </select>
 
                 <input name="telefono" placeholder="Teléfono" value={formData.telefono} onChange={handleChange} />
-                <input name="correo" placeholder="Correo" value={formData.correo} onChange={handleChange} />
 
                 <select name="id_rol" value={formData.id_rol} onChange={handleChange} required>
                     <option value="">-- Rol --</option>

@@ -62,6 +62,20 @@ const prepararLineas = (lineas) => {
     return { lineas: preparadas, total };
 };
 
+// Pago que se recibe al crear la factura: todo (de contado) o un abono parcial.
+// Devuelve { valor } o { error }.
+const calcularPagoInicial = (pagoCompleto, abono, total) => {
+    if (pagoCompleto) return { valor: total };
+    if (abono === undefined || abono === null || abono === '') return { valor: 0 };
+    const numero = Number(abono);
+    if (!Number.isFinite(numero) || numero < 0) return { error: 'El abono no es válido.' };
+    const valor = redondear2(numero);
+    if (valor > total) {
+        return { error: 'El abono no puede ser mayor al total de la factura. Si el cliente pagó de más, regístralo desde "Registrar abono".' };
+    }
+    return { valor };
+};
+
 // Respuesta de error uniforme: mensajes claros para el usuario y sin exponer detalles de MySQL
 const manejarError = (res, error) => {
     if (error instanceof ErrorNegocio) {
@@ -76,4 +90,4 @@ const manejarError = (res, error) => {
     return res.status(500).json({ error: 'No se pudo guardar. Inténtalo de nuevo.' });
 };
 
-module.exports = { ErrorNegocio, validarCabecera, prepararLineas, manejarError };
+module.exports = { ErrorNegocio, validarCabecera, prepararLineas, calcularPagoInicial, manejarError };

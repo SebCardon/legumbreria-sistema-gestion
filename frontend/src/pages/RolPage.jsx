@@ -69,6 +69,9 @@ function RolPage() {
     return (
         <div>
             <h2>Roles</h2>
+            <p style={{ color: 'var(--color-ink-soft)', marginTop: '-12px', marginBottom: '16px', fontSize: '13px' }}>
+                Los roles clasifican a las personas. Hoy solo «Cliente» tiene efecto: quienes lo tienen aparecen al facturar y registrar abonos.
+            </p>            
             <form onSubmit={handleSubmit}>
                 <input name="nombre" placeholder="Nombre" value={formData.nombre} onChange={handleChange} required />
                 <input name="descripcion" placeholder="Descripción" value={formData.descripcion} onChange={handleChange} />

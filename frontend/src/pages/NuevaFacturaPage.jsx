@@ -24,6 +24,7 @@ function NuevaFacturaPage() {
     const [fecha, setFecha] = useState(ahoraLocal());
     const [descripcion, setDescripcion] = useState('');
     const [pagoCompleto, setPagoCompleto] = useState(false);
+    const [abono, setAbono] = useState('');
     const [lineas, setLineas] = useState([]);
     const [guardando, setGuardando] = useState(false);
     const [visor, setVisor] = useState(null);
@@ -87,6 +88,10 @@ function NuevaFacturaPage() {
     const calcularSubtotal = (linea) => subtotalLinea(linea.peso_total_kg, linea.precio_por_kg);
 
     const totalFactura = sumarDinero(lineas.map(calcularSubtotal));
+    
+    // Pago recibido al crear la factura: todo (de contado) o un abono parcial
+    const abonoRecibido = pagoCompleto ? totalFactura : redondear2(abono);
+    const saldoPendiente = Math.max(sumarDinero([totalFactura, -abonoRecibido]), 0);
 
     const lineasPorProducto = lineas.reduce((mapa, l) => {
         mapa[l.id_producto] = (mapa[l.id_producto] || 0) + 1;
@@ -114,6 +119,10 @@ function NuevaFacturaPage() {
             alert('Hay productos sin cantidad o sin presentación. Complétalos o quítalos de la factura.');
             return;
         }
+        if (abonoRecibido > totalFactura) {
+            alert('El abono no puede ser mayor al total de la factura. Si el cliente pagó de más, regístralo después desde "Registrar abono".');
+            return;
+        }
 
         enviandoRef.current = true; // candado inmediato contra doble clic
         setGuardando(true);
@@ -125,6 +134,7 @@ function NuevaFacturaPage() {
                 fecha,
                 descripcion,
                 pago_completo: pagoCompleto,
+                abono: pagoCompleto ? 0 : abonoRecibido,
                 lineas: lineas.map((l) => ({
                     id_producto: l.id_producto,
                     id_presentacion: l.id_presentacion,
@@ -162,6 +172,7 @@ function NuevaFacturaPage() {
             setFecha(ahoraLocal());
             setDescripcion('');
             setPagoCompleto(false);
+            setAbono('');
             setLineas([]);
         } catch (err) {
             console.error(err);
@@ -177,6 +188,10 @@ function NuevaFacturaPage() {
     return (
         <div>
             <h2>Nueva Factura</h2>
+
+            <p style={{ color: 'var(--color-ink-soft)', marginTop: '-12px', marginBottom: '16px', fontSize: '13px' }}>
+                Los precios del catálogo son sugeridos: en cada producto de la factura puedes cambiar la presentación y el precio para esa venta.
+            </p>
 
             <div className="pos-layout">
                 {/* ---------- Catálogo ---------- */}
@@ -305,6 +320,19 @@ function NuevaFacturaPage() {
                         ))}
                     </div>
 
+                    <div className="pos-campo">
+                        <label>Abono recibido</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                            value={pagoCompleto ? totalFactura : abono}
+                            disabled={pagoCompleto}
+                            onChange={(e) => setAbono(e.target.value)}
+                        />
+                    </div>
+
                     <label className="pos-pago">
                         <input
                             type="checkbox"
@@ -318,6 +346,12 @@ function NuevaFacturaPage() {
                         <span>TOTAL</span>
                         <span>{formatMoneda(totalFactura)}</span>
                     </div>
+
+                    {abonoRecibido > 0 && (
+                        <p className="pos-vacio" style={{ textAlign: 'right', padding: 0, margin: '-6px 0 10px 0' }}>
+                            Abono: {formatMoneda(abonoRecibido)} · Pendiente: <strong>{formatMoneda(saldoPendiente)}</strong>
+                        </p>
+                    )}
 
                     <button className="pos-guardar" onClick={handleGuardar} disabled={guardando}>
                         {guardando ? 'Guardando...' : 'Guardar factura'}
